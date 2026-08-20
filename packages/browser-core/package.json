@@ -1,0 +1,15 @@
+{
+  "name": "@dash/browser-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Platform-independent DASH browser domain logic — types, settings, search, blocking, navigation. No Electron, no DOM, no Node built-ins. Consumed by apps/desktop today; apps/android and apps/ios are expected to depend on this same package later.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
