@@ -1,5 +1,9 @@
 node_modules
 dist-electron
 dist
+<<<<<<< HEAD
+=======
+release
+>>>>>>> 28fe771356f2108ed959a188d5cfe218bc4309bf
 *.log
 .DS_Store
