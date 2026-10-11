@@ -35,6 +35,23 @@ export class PasswordManager {
     return safeStorage.decryptString(Buffer.from(encrypted));
   }
 
+  /**
+   * Credential to autofill for EXACTLY this origin (scheme+host+port), most
+   * recently saved first. Never matches sibling subdomains or other schemes.
+   * Returns null if secure storage is unavailable or nothing is saved.
+   */
+  findForOrigin(origin: string): { username: string; password: string } | null {
+    if (!this.isAvailable()) return null;
+    const matches = this.list().filter((p) => p.origin === origin);
+    if (matches.length === 0) return null;
+    const latest = matches.reduce((a, b) => (b.id > a.id ? b : a));
+    try {
+      return { username: latest.username, password: this.reveal(latest.id) };
+    } catch {
+      return null;
+    }
+  }
+
   remove(id: number): void {
     getDatabase().removePassword(id);
   }

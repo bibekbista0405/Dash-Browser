@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { TabStrip } from './components/TabStrip';
 import { AddressBar } from './components/AddressBar';
 import { FindBar } from './components/FindBar';
+import { BookmarksBar } from './components/BookmarksBar';
 import { TabSearch } from './components/TabSearch';
 import { TaskManager } from './components/TaskManager';
 import { PasswordSavePrompt } from './components/PasswordSavePrompt';
@@ -86,6 +87,7 @@ export default function App() {
     onToggleFindBar: () => setFindBarOpen((v) => !v),
     onToggleTabSearch: () => setTabSearchOpen((v) => !v),
     onToggleTaskManager: () => setTaskManagerOpen((v) => !v),
+    onToggleBookmarksBar: () => settingsStore.set('showBookmarksBar', !settingsStore.settings.showBookmarksBar),
   });
 
   const activeTab = activeTabOf(tabsStore);
@@ -104,6 +106,7 @@ export default function App() {
         onOpenSettings={() => openOrFocusInternalPage(INTERNAL_PAGE_URLS.settings)}
         hasActiveDownload={downloadsStore.hasActive}
       />
+      {settingsStore.settings.showBookmarksBar && <BookmarksBar />}
       {/* Remaining space below is intentionally empty — the active
           WebContentsView (including internal pages) is layered here by
           the main process. */}

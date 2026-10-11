@@ -9,7 +9,7 @@ import type { PermissionManager } from '../services/permission-manager';
 import type { ExtensionManager } from '../services/extension-manager';
 import { BookmarksIO } from '../services/bookmarks-io';
 import { getDatabase } from '../db/database';
-import { getWindowContext, getAllWindowContexts } from '../window-context';
+import { getContextForSender, getAllWindowContexts } from '../window-context';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dragIconPath = path.join(__dirname, '../../resources/drag-file-icon.png');
@@ -26,9 +26,9 @@ function assertNumber(value: unknown, field: string): asserts value is number {
   }
 }
 
-/** Every handler that touches a window needs a valid, registered chrome window sending it — never a tab's own webContents. */
+/** Every handler needs a valid sender — either the chrome window itself, or a trusted internal-page tab (dash://history etc). Never an ordinary content tab. */
 function requireContext(sender: WebContents) {
-  const context = getWindowContext(sender.id);
+  const context = getContextForSender(sender.id);
   if (!context) throw new Error('DASH: rejected IPC call from an unrecognized window');
   return context;
 }
@@ -434,6 +434,11 @@ export function registerIpcHandlers(services: IpcServices): void {
         if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
         getDatabase().setSetting('trackerBlockingEnabled', value === 'true');
         break;
+      case 'showBookmarksBar':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('showBookmarksBar', value === 'true');
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.layoutActiveView();
+        break;
       case 'httpsOnlyMode':
         if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
         getDatabase().setSetting('httpsOnlyMode', value === 'true');
@@ -585,6 +590,13 @@ export function registerIpcHandlers(services: IpcServices): void {
   ipcMain.handle(IPC.WINDOW_NEW, (e) => {
     requireContext(e.sender);
     createWindow();
+  });
+
+  ipcMain.handle(IPC.OVERLAY_PUSH, (e) => {
+    requireContext(e.sender).tabManager.pushOverlay();
+  });
+  ipcMain.handle(IPC.OVERLAY_POP, (e) => {
+    requireContext(e.sender).tabManager.popOverlay();
   });
 
   ipcMain.handle(IPC.WINDOW_MINIMIZE, (e) => {

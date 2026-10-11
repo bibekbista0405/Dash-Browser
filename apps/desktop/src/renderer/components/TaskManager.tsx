@@ -1,7 +1,9 @@
+import { useDetachesActiveViewWhileOpen } from '../hooks/useDetachesActiveViewWhileOpen';
 import { useEffect, useState } from 'react';
 import type { TaskProcessInfo } from '../../shared/ipc-channels';
 
 export function TaskManager({ onClose }: { onClose: () => void }) {
+  useDetachesActiveViewWhileOpen(true);
   const [processes, setProcesses] = useState<TaskProcessInfo[]>([]);
 
   useEffect(() => {

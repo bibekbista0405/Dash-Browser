@@ -1,4 +1,4 @@
-# DASH — Milestone 1 through 11
+# DASH — Milestone 1 through 11 (+ critical internal-pages IPC fix)
 
 > **This app lives in a monorepo.** Root-level `npm install` / `npm run
 > dev` / `npm run build` from the repo root are the supported commands —
@@ -6,6 +6,94 @@
 > `@dash/browser-core`, a platform-independent package, for domain logic).
 
 Privacy-first desktop browser. See below for the full feature history.
+
+## Critical fix: internal pages (History/Downloads/Bookmarks/Settings) were completely broken
+
+**Reported symptoms**: Settings did nothing, a completed download never
+showed up in the Downloads tab, and the address bar showed the raw
+`http://localhost:5173/internal.html?page=downloads&tabId=...` instead of
+a clean `dash://downloads`. The logs showed the real cause directly:
+`Error: DASH: rejected IPC call from an unrecognized window` on every
+single call these pages made.
+
+**Root cause**: when Milestone 11 converted these from overlay panels into
+real tabs, I gave them the chrome preload (for real `window.dash` access)
+but never actually registered them as trusted senders in the IPC
+authorization system — that registry was keyed only by each window's own
+chrome shell, never by any tab living inside it. Every call these "real"
+pages made was rejected at the door. This is exactly why they felt
+completely non-functional — they were.
+
+**While fixing that, I found a second, more serious bug it was masking: a
+real security leak.** The original design only rebuilt a tab's
+`WebContentsView` (the only time you can attach or remove a preload)
+when navigating *into* an internal page — not when navigating *out* of
+one. That means a tab that had shown `dash://history` and then navigated
+to a real website via a history entry would carry the privileged
+`window.dash` preload — full API access, including revealing saved
+passwords — into that untrusted external page. Fixed by rebuilding the
+view symmetrically in both directions, not just one.
+
+**Also fixed in the same pass:**
+- Live updates (download progress, settings changes) never reached these
+  tabs at all — `win.webContents.send()` only reaches the chrome shell,
+  never a tab inside it. `broadcast()` now also sends to every registered
+  internal-page tab.
+- A real dev-mode-only bug: the code that cleared "this tab is showing an
+  internal page" state checked for a `file://` URL prefix — correct in a
+  packaged app, but internal pages load via `http://localhost:5173/...`
+  in `npm run dev`, so that check fired on every single internal-page
+  load, immediately reverting the clean `dash://downloads` address-bar
+  display back to the raw dev-server URL. This exact bug is what you saw.
+  Removed the flawed heuristic entirely — the tab's real navigation
+  lifecycle already tracks this state correctly without it.
+- The New Tab Page's `dash://newtab` URL is now hidden from the address
+  bar (shown blank instead), matching real Chrome/Firefox behavior,
+  while the sentinel still works correctly underneath.
+
+**Keyboard shortcuts audited against real Chrome and fixed/added:**
+`Ctrl+Shift+D` (which we'd used for "open bookmarks") is actually Chrome's
+"bookmark all tabs" shortcut — moved bookmarks-manager to `Ctrl+Shift+O`,
+Chrome's real shortcut for it, and `Ctrl+D` now always means "bookmark
+this page" with no shift-modifier overload. Added shortcuts that were
+missing entirely: `Ctrl+Tab`/`Ctrl+Shift+Tab` (cycle tabs), `Ctrl+1`–`9`
+(jump to tab N, with 9 always meaning "last tab" — Chrome's exact
+behavior), and `Alt+Left`/`Alt+Right` (back/forward).
+
+**Three-dot menu rebuilt to actually resemble Chrome's** — keyboard
+shortcut hints next to each item, New Tab/Window/Private Tab at the top,
+History/Downloads/Bookmarks in the menu itself (not just the toolbar),
+grouped into sections with dividers.
+
+**New Tab Page polish**: the wordmark is now genuinely large (64px, matching
+the visual weight of Chrome's own new-tab branding) with a subtle
+entrance animation; tiles get real hover/press feedback. Real favicons on
+the tiles were already wired in a previous pass and are unaffected by
+this — if you're still seeing colored-initial tiles instead of real site
+icons, that's because those history rows predate favicon capture (or the
+sites haven't been revisited since); it'll fill in naturally as you
+browse, since DASH deliberately never fetches favicons from a third-party
+service the way Chrome's own new-tab page does.
+
+**What I did not change**: the `stun_port.cc ... Binding request timed
+out` lines in your log are normal Chromium WebRTC noise (it periodically
+tries STUN binding for peer-to-peer connectivity checks and logs a
+timeout when nothing answers) — not a DASH bug, and not something to
+suppress without breaking real WebRTC use (video calls, etc.) on sites
+that need it.
+
+**Verified**: full clean-room reinstall, typecheck + lint + build all
+clean, a real packaged AppImage built successfully, and — critically for
+this fix — I didn't just trust the build succeeding. I searched the
+actual compiled output and confirmed `requireContext` now calls the fixed
+resolver that checks both chrome windows and trusted internal pages,
+rather than assuming the source change made it through the bundler
+correctly.
+
+**What I still can't verify myself**: whether Settings/Downloads/History
+genuinely work end-to-end now, since I have no display in this
+environment. Please retest with the same specificity as your last
+report — it's exactly what let this get diagnosed and fixed correctly.
 
 ## Milestone 11: real icons, real favicons, real internal-page tabs, and a fix for Chromium's disk-cache corruption error
 
@@ -603,3 +691,28 @@ actually closes that tab. After that, the biggest remaining gap is still
 dedicated `dash://` pages for history/downloads/bookmarks (currently side
 panels) — or wiring a real `build.publish` target so auto-update has
 somewhere to check (see `updater.ts`'s comment block).
+
+## Milestone 13
+
+- **Dropdowns no longer hide behind the page.** Native page views paint above the chrome DOM, so the active view is detached while any menu, omnibox dropdown, tab context menu, tab search or Task Manager is open (`overlay:push/pop`, depth-counted). Side effect: the page area is blank while a menu is open.
+- **New Tab shortcuts are manageable.** One tile per site, hover × removes it (stored locally in `hidden_sites`), "Restore removed shortcuts" brings them back. Adding custom shortcuts is not built yet.
+- **Right-click menu on web pages:** open/copy link, open/copy/save image, spelling suggestions, cut/copy/paste, search selection, back/forward/reload, save page, print, inspect.
+- **Links with target=_blank / Ctrl-click / middle-click open as tabs**; `window.open` popups (OAuth) still open as popup windows.
+- Not visually verified: no display in the build sandbox.
+
+## Milestone 14
+
+- **Bookmarks bar** under the address bar: click opens in the current tab, middle-click in a new tab, hover × removes. Toggle with Ctrl+Shift+B or Settings → Toolbar (stored as `showBookmarksBar`, default on). Page area resizes accordingly.
+- Not built yet: bookmark folders in the bar, drag-to-reorder, overflow ("»") menu for bookmarks that don't fit, custom New Tab shortcuts.
+- Not visually verified.
+
+## Milestone 15
+
+- **Custom New Tab shortcuts:** "+" tile opens an inline name/address form; added sites are stored locally (`custom_shortcuts`), listed before most-visited sites, and removable with ×. Only http/https accepted. A site's logo appears once it has been visited (favicon from history), otherwise a colored initial.
+- Not verified on screen; the add form relies on an inline script in the New Tab data: page.
+
+## Milestone 16
+
+- **Password autofill:** on pages in normal (non-private) tabs, if a password was saved for the exact origin, DASH fills the visible username and password fields of the top-level frame. Never in iframes, private tabs or internal pages. Uses the most recently saved login when several exist.
+- Limits: no account picker for multiple logins, no fill-on-click, doesn't update a saved password when it changes, and the page's own scripts can read filled values (same as other browsers). Heuristic field detection; unusual login forms may not fill.
+- Audit note: database layer (history, shortcuts, bookmarks, settings, suggestions) was tested headlessly with real SQLite. Window/tab code needs a real Electron run and has not been exercised.

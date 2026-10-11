@@ -12,6 +12,7 @@ interface ShortcutHandlers {
   onToggleFindBar: () => void;
   onToggleTabSearch: () => void;
   onToggleTaskManager: () => void;
+  onToggleBookmarksBar: () => void;
 }
 
 /**
@@ -39,7 +40,42 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
         return;
       }
 
+      // Alt+Left/Right — back/forward. Real Chrome default, separate from
+      // the Ctrl-based shortcuts below.
+      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const active = activeTabOf(store);
+        if (active) {
+          if (e.key === 'ArrowLeft' && active.canGoBack) store.goBack(active.id);
+          if (e.key === 'ArrowRight' && active.canGoForward) store.goForward(active.id);
+        }
+        return;
+      }
+
       if (!mod) return;
+
+      // Ctrl/Cmd+Tab and Ctrl/Cmd+Shift+Tab — cycle to next/previous tab.
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const tabs = store.tabs;
+        if (tabs.length < 2) return;
+        const currentIndex = tabs.findIndex((t) => t.isActive);
+        const delta = e.shiftKey ? -1 : 1;
+        const nextIndex = (currentIndex + delta + tabs.length) % tabs.length;
+        store.switchTab(tabs[nextIndex].id);
+        return;
+      }
+
+      // Ctrl/Cmd+1 through 8 jump to that tab position; 9 always jumps to
+      // the last tab — this is Chrome's exact behavior, not "tab 9".
+      if (/^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        const tabs = store.tabs;
+        if (tabs.length === 0) return;
+        const index = e.key === '9' ? tabs.length - 1 : Number(e.key) - 1;
+        if (tabs[index]) store.switchTab(tabs[index].id);
+        return;
+      }
 
       switch (e.key.toLowerCase()) {
         case 'n':
@@ -78,8 +114,19 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
           break;
         case 'd':
           e.preventDefault();
-          if (e.shiftKey) handlers.onToggleBookmarksPanel();
-          else handlers.onToggleCurrentBookmark();
+          handlers.onToggleCurrentBookmark();
+          break;
+        case 'b':
+          if (e.shiftKey) {
+            e.preventDefault();
+            handlers.onToggleBookmarksBar();
+          }
+          break;
+        case 'o':
+          if (e.shiftKey) {
+            e.preventDefault();
+            handlers.onToggleBookmarksPanel();
+          }
           break;
         case 'f':
           e.preventDefault();

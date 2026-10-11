@@ -1,14 +1,12 @@
-import { BrowserWindow, WebContentsView, session, type Session } from 'electron';
+import { BrowserWindow, Menu, dialog, WebContentsView, clipboard, session, type Session } from 'electron';
 import { randomUUID } from 'node:crypto';
 import type { TabState, DashSettings } from '../../shared/ipc-channels';
-import { SLEEP_THRESHOLD_MINUTES, resolveAddressBarInput } from '../../shared/ipc-channels';
+import { SLEEP_THRESHOLD_MINUTES, resolveAddressBarInput, NEW_TAB_URL, BOOKMARKS_BAR_HEIGHT } from '../../shared/ipc-channels';
 import { getDatabase } from '../db/database';
 import type { BlockedCountTracker } from './blocked-count-tracker';
-import { buildNewTabHtml } from './new-tab-page';
+import { buildNewTabHtml, NEWTAB_ACTION_PREFIX } from './new-tab-page';
 
 /** Sentinel URL representing DASH's own New Tab Page — never a real network address. */
-export const NEW_TAB_URL = 'dash://newtab';
-
 /**
  * Real internal pages backed by the second Vite entry (internal.html) and
  * the SAME preload used by the chrome window itself — unlike ordinary web
@@ -65,6 +63,10 @@ export class TabManager {
   private tabs: Map<string, Tab> = new Map();
   private tabOrder: string[] = []; // insertion order, used for session persistence
   private activeTabId: string | null = null;
+  // WebContentsViews are native layers that paint above the chrome window's
+  // DOM regardless of CSS z-index. While any chrome overlay (menu, dropdown)
+  // is open we detach the active view so the overlay is visible.
+  private overlayDepth = 0;
   private onStateChange: (state: TabState) => void;
   private getSettings: () => DashSettings;
   private sleepTimer: ReturnType<typeof setInterval>;
@@ -87,7 +89,10 @@ export class TabManager {
     private notifyTabsChanged: () => void,
     private tracker: BlockedCountTracker,
     private internalPagePreloadPath: string,
-    private loadInternalPage: (view: WebContentsView, page: InternalPageId, tabId: string) => Promise<void>
+    private loadInternalPage: (view: WebContentsView, page: InternalPageId, tabId: string) => Promise<void>,
+    private trustInternalPage: (wc: WebContentsView['webContents']) => void,
+    private untrustInternalPage: (webContentsId: number) => void,
+    private findCredentials: (origin: string) => { username: string; password: string } | null = () => null
   ) {
     this.onStateChange = onStateChange;
     this.getSettings = getSettings;
@@ -145,6 +150,7 @@ export class TabManager {
     }
 
     if (tab.view) {
+      if (tab.internalPage) this.untrustInternalPage(tab.view.webContents.id);
       this.win.contentView.removeChildView(tab.view);
       tab.view.webContents.close();
     }
@@ -247,6 +253,14 @@ export class TabManager {
   print(id: string): void {
     this.tabs.get(id)?.view?.webContents.print();
   }
+  private async promptSavePage(id: string): Promise<void> {
+    const tab = this.tabs.get(id);
+    if (!tab?.view) return;
+    const title = (tab.view.webContents.getTitle() || 'page').replace(/[\\/:*?"<>|]/g, '_');
+    const result = await dialog.showSaveDialog(this.win, { defaultPath: `${title}.html`, filters: [{ name: 'Web page', extensions: ['html'] }] });
+    if (!result.canceled && result.filePath) await this.savePage(id, result.filePath);
+  }
+
   async savePage(id: string, savePath: string): Promise<void> {
     await this.tabs.get(id)?.view?.webContents.savePage(savePath, 'HTMLComplete');
   }
@@ -275,7 +289,7 @@ export class TabManager {
 
     this.activeTabId = id;
     tab.isActive = true;
-    if (tab.view) this.win.contentView.addChildView(tab.view);
+    this.attachActiveViewIfAllowed();
     this.layoutActiveView();
     this.onStateChange(this.getTabState(tab));
   }
@@ -290,19 +304,28 @@ export class TabManager {
       return;
     }
 
-    if (this.isInternalUrl(normalized)) {
+    const targetNeedsFreshView = this.isInternalUrl(normalized);
+    const currentlyHasPrivilegedPreload = tab.internalPage !== null;
+
+    if (targetNeedsFreshView || currentlyHasPrivilegedPreload) {
       // Preload attachment only happens at WebContentsView construction
-      // time, so switching into (or between) internal pages needs a fresh
-      // view — a plain loadURL can't retroactively grant window.dash
-      // access, and "dash://…" isn't a real registered protocol a plain
-      // loadURL could resolve anyway.
+      // time, so any transition into OR out of an internal page needs a
+      // fresh view. This matters in both directions: a plain loadURL can't
+      // retroactively grant window.dash access when entering an internal
+      // page, but — more importantly — it also can't retroactively REVOKE
+      // that access when leaving one. Without this check, a tab that had
+      // shown dash://history and then navigated to a real website would
+      // keep the chrome preload attached to that untrusted page, handing
+      // it genuine window.dash access (read saved passwords, close tabs,
+      // etc.). This was a real bug, not a hypothetical one.
       if (tab.view) {
+        if (tab.internalPage) this.untrustInternalPage(tab.view.webContents.id);
         this.win.contentView.removeChildView(tab.view);
         tab.view.webContents.close();
         tab.view = null;
       }
       this.materialize(tab, normalized);
-      if (tab.isActive && tab.view) this.win.contentView.addChildView(tab.view);
+      if (tab.isActive) this.attachActiveViewIfAllowed();
       this.layoutActiveView();
       return;
     }
@@ -372,16 +395,39 @@ export class TabManager {
       .map((t) => t.lastKnownUrl);
   }
 
+  pushOverlay(): void {
+    this.overlayDepth += 1;
+    if (this.overlayDepth === 1 && this.activeTabId) {
+      const tab = this.tabs.get(this.activeTabId);
+      if (tab?.view) this.win.contentView.removeChildView(tab.view);
+    }
+  }
+
+  popOverlay(): void {
+    this.overlayDepth = Math.max(0, this.overlayDepth - 1);
+    if (this.overlayDepth === 0) {
+      this.attachActiveViewIfAllowed();
+      this.layoutActiveView();
+    }
+  }
+
+  private attachActiveViewIfAllowed(): void {
+    if (this.overlayDepth > 0 || !this.activeTabId) return;
+    const tab = this.tabs.get(this.activeTabId);
+    if (tab?.view) this.win.contentView.addChildView(tab.view);
+  }
+
   layoutActiveView(): void {
     if (!this.activeTabId) return;
     const tab = this.tabs.get(this.activeTabId);
     if (!tab?.view) return;
     const bounds = this.win.getContentBounds();
+    const top = TOOLBAR_HEIGHT + (this.getSettings().showBookmarksBar ? BOOKMARKS_BAR_HEIGHT : 0);
     tab.view.setBounds({
       x: 0,
-      y: TOOLBAR_HEIGHT,
+      y: top,
       width: bounds.width,
-      height: bounds.height - TOOLBAR_HEIGHT,
+      height: Math.max(0, bounds.height - top),
     });
   }
 
@@ -409,6 +455,7 @@ export class TabManager {
       tab.lastKnownTitle = tab.view.webContents.getTitle() || tab.lastKnownTitle;
     }
 
+    if (tab.internalPage) this.untrustInternalPage(tab.view.webContents.id);
     this.win.contentView.removeChildView(tab.view);
     tab.view.webContents.close();
     tab.view = null;
@@ -450,15 +497,16 @@ export class TabManager {
     this.wireEvents(tab);
     view.webContents.setZoomFactor(tab.zoomFactor);
     view.webContents.setAudioMuted(tab.isMuted);
-    this.wirePopupHandling(view);
+    this.wirePopupHandling(view, tab);
+    this.wireContextMenu(view, tab);
 
     if (tab.isNewTabPage) {
       // Real top sites, computed fresh every time the New Tab Page opens —
       // never stale placeholder data. No preload/IPC bridge needed at all:
       // it's a self-contained document with real <a href> links and a real
       // <form> for search, so ordinary navigation handles everything.
-      const topSites = getDatabase().getTopSites(8);
-      const html = buildNewTabHtml(topSites, this.getSettings().searchEngine);
+      const db = getDatabase();
+      const html = buildNewTabHtml(db.getShortcutSites(8), this.getSettings().searchEngine, db.countHiddenSites());
       view.webContents.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch((err) => {
         console.error('[DASH] Failed to load New Tab Page:', err.message);
       });
@@ -466,6 +514,7 @@ export class TabManager {
     }
 
     if (internalPage) {
+      this.trustInternalPage(view.webContents);
       this.loadInternalPage(view, internalPage, tab.id).catch((err) => {
         console.error(`[DASH] Failed to load internal page ${internalPage}:`, err.message);
       });
@@ -499,8 +548,37 @@ export class TabManager {
    * blocklist (RequestBlocker) stops most junk popups already, since their
    * triggering scripts get blocked before they can even call window.open().
    */
-  private wirePopupHandling(view: WebContentsView): void {
-    view.webContents.setWindowOpenHandler(() => ({
+  private wirePopupHandling(view: WebContentsView, tab: Tab): void {
+    view.webContents.setWindowOpenHandler((details) => {
+      // Ordinary target=_blank links and Ctrl/middle-click open as real tabs.
+      // window.open() with features (OAuth sign-in etc.) stays a popup that
+      // shares this tab's session.
+      if (
+        (details.disposition === 'foreground-tab' || details.disposition === 'background-tab') &&
+        /^https?:/i.test(details.url)
+      ) {
+        const previous = this.activeTabId;
+        setImmediate(() => {
+          this.createTab(details.url, tab.isPrivate);
+          if (details.disposition === 'background-tab' && previous && this.tabs.has(previous)) {
+            this.switchTab(previous);
+          }
+        });
+        return { action: 'deny' };
+      }
+      return this.popupWindowOptions(view);
+    });
+
+    view.webContents.on('did-create-window', (childWindow) => {
+      childWindow.setMenuBarVisibility(false);
+    });
+  }
+
+  private popupWindowOptions(view: WebContentsView): {
+    action: 'allow';
+    overrideBrowserWindowOptions: Electron.BrowserWindowConstructorOptions;
+  } {
+    return ({
       action: 'allow',
       overrideBrowserWindowOptions: {
         width: 500,
@@ -513,10 +591,112 @@ export class TabManager {
           session: view.webContents.session,
         },
       },
-    }));
+    });
+  }
 
-    view.webContents.on('did-create-window', (childWindow) => {
-      childWindow.setMenuBarVisibility(false);
+  /**
+   * Fills a saved login into the page's top-level frame only (never iframes),
+   * and only for a credential saved for this exact origin. Needs a visible
+   * password field; the username goes into the closest preceding text/email
+   * field. Runs after load and again after in-page route changes via the
+   * same did-stop-loading hook. The page's own scripts can read what we fill,
+   * the same exposure as Chrome/Firefox autofill.
+   */
+  private tryAutofill(wc: Electron.WebContents): void {
+    let origin: string;
+    try {
+      origin = new URL(wc.getURL()).origin;
+    } catch {
+      return;
+    }
+    if (!/^https?:\/\//i.test(origin)) return;
+    const cred = this.findCredentials(origin);
+    if (!cred) return;
+    const script = `(() => {
+      const cred = ${JSON.stringify(cred)};
+      const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; };
+      const pw = Array.from(document.querySelectorAll('input[type=password]')).find((el) => visible(el) && !el.value);
+      if (!pw) return false;
+      const set = (el, v) => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(el, v);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      const scope = pw.form || document;
+      const fields = Array.from(scope.querySelectorAll('input')).filter((el) => visible(el) && ['text', 'email', 'tel', ''].includes(el.type));
+      let user = null;
+      for (const f of fields) { if (f.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING) user = f; }
+      if (user && !user.value) set(user, cred.username);
+      set(pw, cred.password);
+      return true;
+    })()`;
+    wc.executeJavaScript(script, false).catch(() => undefined);
+  }
+
+  /** Right-click menu for web pages: link, image, selection, editing and page actions. */
+  private wireContextMenu(view: WebContentsView, tab: Tab): void {
+    const wc = view.webContents;
+    wc.on('context-menu', (_event, params) => {
+      if (tab.internalPage) return;
+      const items: Electron.MenuItemConstructorOptions[] = [];
+      const open = (url: string): void => {
+        if (/^https?:/i.test(url)) this.createTab(url, tab.isPrivate);
+      };
+
+      if (params.linkURL) {
+        items.push(
+          { label: 'Open link in new tab', click: () => open(params.linkURL) },
+          { label: 'Copy link address', click: () => clipboard.writeText(params.linkURL) },
+          { type: 'separator' }
+        );
+      }
+      if (params.mediaType === 'image' && params.srcURL) {
+        items.push(
+          { label: 'Open image in new tab', click: () => open(params.srcURL) },
+          { label: 'Copy image address', click: () => clipboard.writeText(params.srcURL) },
+          { label: 'Save image as…', click: () => wc.downloadURL(params.srcURL) },
+          { type: 'separator' }
+        );
+      }
+      if (params.misspelledWord) {
+        for (const s of params.dictionarySuggestions.slice(0, 5)) {
+          items.push({ label: s, click: () => wc.replaceMisspelling(s) });
+        }
+        if (params.dictionarySuggestions.length) items.push({ type: 'separator' });
+      }
+      if (params.isEditable) {
+        items.push(
+          { label: 'Undo', role: 'undo' },
+          { label: 'Redo', role: 'redo' },
+          { type: 'separator' },
+          { label: 'Cut', role: 'cut' },
+          { label: 'Copy', role: 'copy' },
+          { label: 'Paste', role: 'paste' },
+          { label: 'Select all', role: 'selectAll' }
+        );
+      } else if (params.selectionText) {
+        const q = params.selectionText.trim();
+        const short = q.length > 24 ? q.slice(0, 23) + '…' : q;
+        items.push(
+          { label: 'Copy', role: 'copy' },
+          { label: `Search for “${short}”`, click: () => open(this.normalizeUrl(q)) }
+        );
+      } else if (!params.linkURL && params.mediaType !== 'image') {
+        items.push(
+          { label: 'Back', enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() },
+          { label: 'Forward', enabled: wc.navigationHistory.canGoForward(), click: () => wc.navigationHistory.goForward() },
+          { label: 'Reload', click: () => wc.reload() },
+          { type: 'separator' },
+          { label: 'Save page as…', click: () => { void this.promptSavePage(tab.id); } },
+          { label: 'Print…', click: () => this.print(tab.id) }
+        );
+      }
+      items.push(
+        { type: 'separator' },
+        { label: 'Inspect', click: () => wc.inspectElement(params.x, params.y) }
+      );
+      Menu.buildFromTemplate(items).popup({ window: this.win });
     });
   }
 
@@ -531,6 +711,33 @@ export class TabManager {
     const push = () => this.onStateChange(this.getTabState(tab));
 
     wc.on('will-navigate', (event, targetUrl) => {
+      if (tab.isNewTabPage && targetUrl.startsWith(NEWTAB_ACTION_PREFIX)) {
+        event.preventDefault();
+        try {
+          const u = new URL(targetUrl);
+          const db = getDatabase();
+          if (u.pathname === '/remove') {
+            const host = u.searchParams.get('host');
+            if (host && host.length < 256) {
+              db.removeCustomShortcut(host);
+              db.hideSite(host);
+            }
+          } else if (u.pathname === '/add') {
+            const url = u.searchParams.get('url') ?? '';
+            if (url.length < 2048) db.addCustomShortcut(url, u.searchParams.get('title') ?? '');
+          } else if (u.pathname === '/restore') {
+            db.restoreHiddenSites();
+          }
+        } catch {
+          /* malformed action URL: ignore */
+        }
+        setImmediate(() => {
+          const topSites = getDatabase();
+          const html = buildNewTabHtml(topSites.getShortcutSites(8), this.getSettings().searchEngine, topSites.countHiddenSites());
+          wc.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch(() => undefined);
+        });
+        return;
+      }
       if (this.isInternalUrl(targetUrl)) {
         event.preventDefault();
         // Deferred: navigate() may tear down and replace this exact
@@ -547,6 +754,7 @@ export class TabManager {
     });
     wc.on('did-stop-loading', () => {
       push();
+      if (!tab.isPrivate && !tab.internalPage && !tab.isNewTabPage) this.tryAutofill(wc);
       // Record real history — but NEVER for private tabs. This is a hard
       // privacy rule, not a UI toggle: private browsing must leave no trace.
       if (!tab.isPrivate) {
@@ -566,12 +774,12 @@ export class TabManager {
     wc.on('did-navigate', (_e, navigatedUrl) => {
       // A real navigation away from the New Tab Page (clicked a top site,
       // submitted the search form) — stop treating this tab as the New Tab
-      // Page from here on, same way any other tab behaves.
+      // Page from here on, same way any other tab behaves. (No equivalent
+      // check is needed for internal pages: materialize() already sets
+      // tab.internalPage correctly on every real transition, since
+      // navigate() now always tears down and rebuilds the view whenever
+      // switching into or out of one — see navigate()'s comments.)
       if (tab.isNewTabPage && !navigatedUrl.startsWith('data:')) tab.isNewTabPage = false;
-      // Same idea for internal pages reached via a fresh materialize() —
-      // real ones are file:// loads, so anything else means the user
-      // navigated away (typed a URL, clicked an actual external link).
-      if (tab.internalPage && !navigatedUrl.startsWith('file://')) tab.internalPage = null;
       tab.faviconUrl = null; // clear the old site's icon until the new page reports its own
       push();
     });

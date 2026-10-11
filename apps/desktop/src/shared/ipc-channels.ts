@@ -93,6 +93,8 @@ export const IPC = {
   SUGGESTIONS_QUERY: 'suggestions:query',
 
   WINDOW_NEW: 'window:new',
+  OVERLAY_PUSH: 'overlay:push',
+  OVERLAY_POP: 'overlay:pop',
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',

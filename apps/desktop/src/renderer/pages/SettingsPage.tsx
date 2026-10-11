@@ -133,6 +133,14 @@ export function SettingsPage() {
         </div>
       </Section>
 
+      <Section title="Toolbar">
+        <ToggleRow
+          label="Show bookmarks bar (Ctrl+Shift+B)"
+          checked={settings.showBookmarksBar}
+          onChange={() => set('showBookmarksBar', !settings.showBookmarksBar)}
+        />
+      </Section>
+
       <Section title="Performance">
         <ToggleRow
           label="Sleep inactive tabs"

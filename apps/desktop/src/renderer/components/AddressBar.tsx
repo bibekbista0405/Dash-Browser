@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTabsStore, activeTabOf } from '../store/tabs-store';
 import { useBookmarksStore } from '../store/bookmarks-store';
 import type { AddressSuggestion } from '../../shared/ipc-channels';
+import { NEW_TAB_URL } from '../../shared/ipc-channels';
+import { useDetachesActiveViewWhileOpen } from '../hooks/useDetachesActiveViewWhileOpen';
 
 interface AddressBarProps {
   onOpenHistory: () => void;
@@ -26,11 +28,12 @@ export function AddressBar({
   const [isEditing, setIsEditing] = useState(false);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  useDetachesActiveViewWhileOpen(isEditing && suggestions.length > 0);
 
   const { isBookmarked, findByUrl, add: addBookmark, remove: removeBookmark } = useBookmarksStore();
 
   useEffect(() => {
-    if (!isEditing) setDraft(activeTab?.url ?? '');
+    if (!isEditing) setDraft(activeTab?.url === NEW_TAB_URL ? '' : activeTab?.url ?? '');
   }, [activeTab?.url, isEditing]);
 
   useEffect(() => {
@@ -181,6 +184,10 @@ export function AddressBar({
           <MoreMenu
             tabId={activeTab.id}
             onClose={() => setShowMoreMenu(false)}
+            onOpenHistory={onOpenHistory}
+            onOpenBookmarks={onOpenBookmarks}
+            onOpenDownloads={onOpenDownloads}
+            onOpenSettings={onOpenSettings}
           />
         )}
       </div>
@@ -188,8 +195,25 @@ export function AddressBar({
   );
 }
 
-function MoreMenu({ tabId, onClose }: { tabId: string; onClose: () => void }) {
+function MoreMenu({
+  tabId,
+  onClose,
+  onOpenHistory,
+  onOpenBookmarks,
+  onOpenDownloads,
+  onOpenSettings,
+}: {
+  tabId: string;
+  onClose: () => void;
+  onOpenHistory: () => void;
+  onOpenBookmarks: () => void;
+  onOpenDownloads: () => void;
+  onOpenSettings: () => void;
+}) {
+  useDetachesActiveViewWhileOpen(true);
   const ref = useRef<HTMLDivElement>(null);
+  const isMac = navigator.platform.toLowerCase().includes('mac');
+  const mod = isMac ? '⌘' : 'Ctrl';
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -199,52 +223,65 @@ function MoreMenu({ tabId, onClose }: { tabId: string; onClose: () => void }) {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [onClose]);
 
-  const item = (label: string, onClick: () => void) => (
+  const item = (label: string, onClick: () => void, shortcut?: string) => (
     <button
       onClick={() => {
         onClick();
         onClose();
       }}
-      className="w-full text-left px-3 py-1.5 text-[13px] text-text-primary hover:bg-surface-hover transition-colors"
+      className="w-full flex items-center justify-between px-3 py-1.5 text-[13px] text-text-primary hover:bg-surface-hover transition-colors"
     >
-      {label}
+      <span>{label}</span>
+      {shortcut && <span className="text-[11px] text-text-tertiary">{shortcut}</span>}
     </button>
   );
+
+  const divider = <div className="h-px bg-border my-1" />;
 
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-9 z-50 w-48 py-1 rounded-lg bg-surface-elevated border border-border shadow-2xl"
+      className="absolute right-0 top-9 z-50 w-64 py-1 rounded-lg bg-surface-elevated border border-border shadow-2xl"
     >
-      {item('New window', () => window.dash.windowControls.new())}
-      <div className="h-px bg-border my-1" />
-      <div className="flex items-center justify-between px-3 py-1">
+      {item('New tab', () => useTabsStore.getState().createTab(), `${mod}+T`)}
+      {item('New window', () => window.dash.windowControls.new(), `${mod}+N`)}
+      {item('New private tab', () => useTabsStore.getState().createTab(true), `${mod}+Shift+N`)}
+      {divider}
+      {item('History', onOpenHistory, `${mod}+H`)}
+      {item('Downloads', onOpenDownloads, `${mod}+J`)}
+      {item('Bookmarks', onOpenBookmarks, `${mod}+Shift+O`)}
+      {divider}
+      <div className="flex items-center justify-between px-3 py-1.5">
         <span className="text-[13px] text-text-primary">Zoom</span>
         <div className="flex items-center gap-1">
           <button
             onClick={() => window.dash.zoom.out(tabId)}
-            className="h-6 w-6 flex items-center justify-center rounded hover:bg-surface-hover text-text-secondary"
+            className="h-6 w-6 flex items-center justify-center rounded hover:bg-surface text-text-secondary"
           >
             −
           </button>
           <button
             onClick={() => window.dash.zoom.reset(tabId)}
-            className="h-6 w-6 flex items-center justify-center rounded hover:bg-surface-hover text-text-secondary text-[11px]"
+            className="h-6 w-6 flex items-center justify-center rounded hover:bg-surface text-text-secondary text-[11px]"
+            title="Reset zoom"
           >
             ⟲
           </button>
           <button
             onClick={() => window.dash.zoom.in(tabId)}
-            className="h-6 w-6 flex items-center justify-center rounded hover:bg-surface-hover text-text-secondary"
+            className="h-6 w-6 flex items-center justify-center rounded hover:bg-surface text-text-secondary"
           >
             +
           </button>
         </div>
       </div>
-      <div className="h-px bg-border my-1" />
-      {item('Print…', () => window.dash.page.print(tabId))}
-      {item('Save page as…', () => window.dash.page.save(tabId))}
-      {item('Developer tools', () => window.dash.page.toggleDevTools(tabId))}
+      {divider}
+      {item('Print…', () => window.dash.page.print(tabId), `${mod}+P`)}
+      {item('Save page as…', () => window.dash.page.save(tabId), `${mod}+S`)}
+      {item('Find in page…', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: !isMac, metaKey: isMac })), `${mod}+F`)}
+      {divider}
+      {item('Developer tools', () => window.dash.page.toggleDevTools(tabId), 'F12')}
+      {item('Settings', onOpenSettings)}
     </div>
   );
 }

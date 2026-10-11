@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTabsStore } from '../store/tabs-store';
+import { useDetachesActiveViewWhileOpen } from '../hooks/useDetachesActiveViewWhileOpen';
 import type { TabState } from '../../shared/ipc-channels';
 
 interface ContextMenuState {
@@ -20,6 +21,7 @@ export function TabStrip() {
   const reorderTabs = useTabsStore((s) => s.reorderTabs);
 
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  useDetachesActiveViewWhileOpen(menu !== null);
   const [dragId, setDragId] = useState<string | null>(null);
 
   const openMenu = (e: React.MouseEvent, tabId: string) => {

@@ -11,7 +11,14 @@ import { PermissionManager } from './services/permission-manager';
 import { ExtensionManager } from './services/extension-manager';
 import { LoginDetector, type DetectedLogin } from './services/login-detector';
 import { registerIpcHandlers } from './ipc/register-ipc';
-import { registerWindowContext, unregisterWindowContext, getAllWindowContexts } from './window-context';
+import {
+  registerWindowContext,
+  unregisterWindowContext,
+  getAllWindowContexts,
+  registerInternalPage,
+  unregisterInternalPage,
+  getAllInternalPageWebContents,
+} from './window-context';
 import { IPC, type DashSettings } from '../shared/ipc-channels';
 import { getDatabase } from './db/database';
 import { checkForUpdatesInBackground } from './services/updater';
@@ -23,6 +30,15 @@ const isDev = !!process.env.VITE_DEV_SERVER_URL;
 function broadcast(channel: string, payload: unknown): void {
   for (const { win } of getAllWindowContexts()) {
     win.webContents.send(channel, payload);
+  }
+  // win.webContents.send() only reaches the chrome shell (the React app
+  // rendering the tab strip/address bar) — it does NOT reach any tab
+  // living inside that window, including our own internal pages. Without
+  // this, dash://settings would never see a settings change made
+  // elsewhere, and dash://downloads would never see live download
+  // progress while the tab was open.
+  for (const wc of getAllInternalPageWebContents()) {
+    wc.send(channel, payload);
   }
 }
 
@@ -176,6 +192,14 @@ app.whenReady().then(async () => {
       }
     };
 
+    // Forward-declared so the trust/untrust callbacks (needed by TabManager's
+    // constructor, before TabManager itself exists) can close over the
+    // eventual {win, tabManager} pair without a chicken-and-egg problem —
+    // they're never actually invoked until after materialize() runs, which
+    // only happens once a tab is created, safely after everything below
+    // is fully constructed.
+    const contextRef: { current: { win: BrowserWindow; tabManager: TabManager } | null } = { current: null };
+
     const tabManager = new TabManager(
       win,
       (state) => {
@@ -186,8 +210,12 @@ app.whenReady().then(async () => {
       scheduleSessionSave,
       tracker,
       internalPagePreloadPath,
-      loadInternalPage
+      loadInternalPage,
+      (wc) => registerInternalPage(wc, contextRef.current!),
+      (webContentsId) => unregisterInternalPage(webContentsId),
+      (origin) => passwordManager.findForOrigin(origin)
     );
+    contextRef.current = { win, tabManager };
 
     // Private tabs in THIS window get their own isolated session, so it
     // needs its own RequestBlocker (one onBeforeRequest listener per

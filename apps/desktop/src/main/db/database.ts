@@ -98,6 +98,18 @@ class DashDatabase {
         UNIQUE(origin, permission)
       );
 
+      CREATE TABLE IF NOT EXISTS custom_shortcuts (
+        host TEXT PRIMARY KEY,
+        url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS hidden_sites (
+        host TEXT PRIMARY KEY,
+        hidden_at INTEGER NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS extensions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         folder_path TEXT NOT NULL UNIQUE,
@@ -243,6 +255,7 @@ class DashDatabase {
       trackerBlockingEnabled: stored.trackerBlockingEnabled
         ? stored.trackerBlockingEnabled === 'true'
         : DEFAULT_SETTINGS.trackerBlockingEnabled,
+      showBookmarksBar: stored.showBookmarksBar ? stored.showBookmarksBar === 'true' : DEFAULT_SETTINGS.showBookmarksBar,
       httpsOnlyMode: stored.httpsOnlyMode ? stored.httpsOnlyMode === 'true' : DEFAULT_SETTINGS.httpsOnlyMode,
     };
   }
@@ -404,6 +417,71 @@ class DashDatabase {
       )
       .all(limit) as { url: string; title: string; faviconUrl: string | null; visitCount: number }[];
     return rows;
+  }
+
+  /** Hides a site (by hostname) from the New Tab shortcuts. Does not touch history. */
+  hideSite(host: string): void {
+    this.db.prepare(`INSERT OR REPLACE INTO hidden_sites (host, hidden_at) VALUES (?, ?)`).run(host, Date.now());
+  }
+
+  /** Adds a user-defined shortcut (http/https only). Returns false if the URL is invalid. */
+  addCustomShortcut(rawUrl: string, title: string): boolean {
+    let u: URL;
+    try {
+      u = new URL(/^[a-z][a-z0-9+.-]*:/i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
+    } catch {
+      return false;
+    }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+    const host = u.hostname.replace(/^www\./, '');
+    this.db
+      .prepare(`INSERT OR REPLACE INTO custom_shortcuts (host, url, title, created_at) VALUES (?, ?, ?, ?)`)
+      .run(host, u.href, title.trim().slice(0, 60) || host, Date.now());
+    this.db.prepare(`DELETE FROM hidden_sites WHERE host = ?`).run(host);
+    return true;
+  }
+
+  removeCustomShortcut(host: string): void {
+    this.db.prepare(`DELETE FROM custom_shortcuts WHERE host = ?`).run(host);
+  }
+
+  restoreHiddenSites(): void {
+    this.db.prepare(`DELETE FROM hidden_sites`).run();
+  }
+
+  countHiddenSites(): number {
+    return (this.db.prepare(`SELECT COUNT(*) as n FROM hidden_sites`).get() as { n: number }).n;
+  }
+
+  /** Top sites collapsed to one tile per hostname, excluding hidden hosts and internal schemes. */
+  getShortcutSites(limit = 8): { url: string; title: string; faviconUrl: string | null }[] {
+    const hidden = new Set(
+      (this.db.prepare(`SELECT host FROM hidden_sites`).all() as { host: string }[]).map((r) => r.host)
+    );
+    const seen = new Set<string>();
+    const out: { url: string; title: string; faviconUrl: string | null }[] = [];
+    const customs = this.db
+      .prepare(`SELECT host, url, title FROM custom_shortcuts ORDER BY created_at ASC`)
+      .all() as { host: string; url: string; title: string }[];
+    for (const c of customs) {
+      const icon = this.db
+        .prepare(`SELECT favicon_url FROM history WHERE favicon_url IS NOT NULL AND url LIKE ? ORDER BY visited_at DESC LIMIT 1`)
+        .get(`%://${c.host}%`) as { favicon_url: string } | undefined;
+      seen.add(c.host);
+      out.push({ url: c.url, title: c.title, faviconUrl: icon?.favicon_url ?? null });
+    }
+    const rows = this.getTopSites(300);
+    for (const r of rows) {
+      let u: URL;
+      try { u = new URL(r.url); } catch { continue; }
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') continue;
+      const host = u.hostname.replace(/^www\./, '');
+      if (hidden.has(host) || seen.has(host)) continue;
+      seen.add(host);
+      out.push({ url: u.origin + '/', title: r.title, faviconUrl: r.faviconUrl });
+      if (out.length >= limit) break;
+    }
+    return out.slice(0, limit);
   }
 
   // ---- Extensions ----

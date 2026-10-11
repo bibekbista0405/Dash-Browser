@@ -1,7 +1,9 @@
+import { useDetachesActiveViewWhileOpen } from '../hooks/useDetachesActiveViewWhileOpen';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTabsStore } from '../store/tabs-store';
 
 export function TabSearch({ onClose }: { onClose: () => void }) {
+  useDetachesActiveViewWhileOpen(true);
   const tabs = useTabsStore((s) => s.tabs);
   const switchTab = useTabsStore((s) => s.switchTab);
   const [query, setQuery] = useState('');

@@ -160,6 +160,10 @@ const dashApi = {
     snapshot: (): Promise<TaskProcessInfo[]> => ipcRenderer.invoke(IPC.TASK_MANAGER_SNAPSHOT),
     endProcess: (pid: number): Promise<void> => ipcRenderer.invoke(IPC.TASK_MANAGER_END_PROCESS, pid),
   },
+  overlay: {
+    push: (): Promise<void> => ipcRenderer.invoke(IPC.OVERLAY_PUSH),
+    pop: (): Promise<void> => ipcRenderer.invoke(IPC.OVERLAY_POP),
+  },
   windowControls: {
     new: (): Promise<void> => ipcRenderer.invoke(IPC.WINDOW_NEW),
     minimize: (): Promise<void> => ipcRenderer.invoke(IPC.WINDOW_MINIMIZE),
