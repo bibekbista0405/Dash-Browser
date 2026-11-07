@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+.dark {
+  --color-surface: 11 13 16;
+  --color-surface-elevated: 21 24 29;
+  --color-surface-hover: 31 35 42;
+  --color-border: 38 43 51;
+  --color-accent: 91 140 255;
+  --color-text-primary: 242 243 245;
+  --color-text-secondary: 167 173 184;
+  --color-text-tertiary: 92 98 109;
+}
+
+.light {
+  color-scheme: light;
+  --color-surface: 255 255 255;
+  --color-surface-elevated: 246 247 249;
+  --color-surface-hover: 236 238 241;
+  --color-border: 224 227 231;
+  --color-accent: 59 100 220;
+  --color-text-primary: 20 22 26;
+  --color-text-secondary: 90 96 107;
+  --color-text-tertiary: 150 156 166;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+.app-drag {
+  -webkit-app-region: drag;
+}
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
