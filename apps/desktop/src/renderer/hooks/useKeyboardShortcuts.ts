@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTabsStore, activeTabOf } from '../store/tabs-store';
 
 interface ShortcutHandlers {
@@ -20,12 +20,36 @@ interface ShortcutHandlers {
  * Bound once at the App root; never intercepts keys typed inside the
  * address bar input itself (browser-native undo/redo etc. still work there).
  */
+interface ShortcutKey {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+  preventDefault: () => void;
+}
+
 export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
-  const store = useTabsStore();
+  // Handlers change every render; keep the latest in a ref. The tab store is
+  // read fresh via getState() on every key press — capturing it once at
+  // mount would freeze the tab list at its initial (empty) value and break
+  // close/reload/zoom/print/Ctrl+1-9 and similar.
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
+    const onKeyDown = (e: ShortcutKey) => {
+      const handlers = handlersRef.current;
+      const store = useTabsStore.getState();
       const mod = e.metaKey || e.ctrlKey;
+
+      if (e.key === 'F5') {
+        e.preventDefault();
+        const active = activeTabOf(store);
+        if (active) store.reload(active.id);
+        return;
+      }
+
 
       if (e.key === 'F12') {
         e.preventDefault();
@@ -101,7 +125,9 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
         case 'r': {
           e.preventDefault();
           const active = activeTabOf(store);
-          if (active) store.reload(active.id);
+          if (!active) break;
+          if (e.shiftKey) window.dash.page.toggleReader(active.id);
+          else store.reload(active.id);
           break;
         }
         case 'h':
@@ -180,7 +206,12 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers): void {
     };
 
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    // Keys pressed while a web page has focus are intercepted in the main process and forwarded here.
+    const offForwarded = window.dash.shortcuts.onKey((k) => onKeyDown({ ...k, preventDefault: () => undefined }));
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      offForwarded();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

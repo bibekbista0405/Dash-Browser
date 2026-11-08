@@ -1,3 +1,6 @@
+import { VpnToolbarButton } from './VpnToolbarButton';
+import { SitePanel } from './SitePanel';
+import { Logo } from './Logo';
 import { useEffect, useRef, useState } from 'react';
 import { useTabsStore, activeTabOf } from '../store/tabs-store';
 import { useBookmarksStore } from '../store/bookmarks-store';
@@ -28,6 +31,9 @@ export function AddressBar({
   const [isEditing, setIsEditing] = useState(false);
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showSite, setShowSite] = useState(false);
+  useDetachesActiveViewWhileOpen(showSite);
+  useEffect(() => setShowSite(false), [activeTab?.id]);
   useDetachesActiveViewWhileOpen(isEditing && suggestions.length > 0);
 
   const { isBookmarked, findByUrl, add: addBookmark, remove: removeBookmark } = useBookmarksStore();
@@ -105,11 +111,7 @@ export function AddressBar({
               🛡 {activeTab.blockedCount}
             </span>
           )}
-          {!activeTab.url.startsWith('http://') && activeTab.url.length > 0 && (
-            <span className="text-accent text-xs" title="Secure connection">
-              🔒
-            </span>
-          )}
+          <SecurityBadge url={activeTab.url} onClick={() => setShowSite((v) => !v)} expanded={showSite} />
           <input
             ref={addressInputRef}
             value={draft}
@@ -124,6 +126,7 @@ export function AddressBar({
             spellCheck={false}
           />
         </div>
+        {showSite && activeTab && <SitePanel tab={activeTab} onClose={() => setShowSite(false)} />}
 
         {isEditing && suggestions.length > 0 && (
           <div className="absolute top-11 left-0 right-0 z-40 py-1 rounded-lg bg-surface-elevated border border-border shadow-2xl overflow-hidden">
@@ -172,6 +175,7 @@ export function AddressBar({
       <NavButton onClick={onOpenHistory} label="Show history">
         <span className="text-[13px]">↺</span>
       </NavButton>
+      <VpnToolbarButton onOpenSettings={onOpenSettings} />
       <NavButton onClick={onOpenSettings} label="Settings">
         <span className="text-[13px]">⚙</span>
       </NavButton>
@@ -277,9 +281,11 @@ function MoreMenu({
       </div>
       {divider}
       {item('Print…', () => window.dash.page.print(tabId), `${mod}+P`)}
+      {item('Save as PDF…', () => window.dash.page.savePdf(tabId))}
       {item('Save page as…', () => window.dash.page.save(tabId), `${mod}+S`)}
       {item('Find in page…', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: !isMac, metaKey: isMac })), `${mod}+F`)}
       {divider}
+      {item('Reading mode', () => window.dash.page.toggleReader(tabId), `${mod}+Shift+R`)}
       {item('Developer tools', () => window.dash.page.toggleDevTools(tabId), 'F12')}
       {item('Settings', onOpenSettings)}
     </div>
@@ -309,4 +315,48 @@ function NavButton({
       {children}
     </button>
   );
+}
+
+/** Honest connection indicator: a lock only for https, a warning for http, our logo for DASH's own pages. */
+function SecurityBadge({ url, onClick, expanded }: { url: string; onClick: () => void; expanded: boolean }) {
+  const inner = <SecurityBadgeIcon url={url} />;
+  if (!inner) return null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Site information"
+      aria-expanded={expanded}
+      className="shrink-0 rounded hover:bg-surface-hover px-0.5 -mx-0.5 flex items-center"
+    >
+      {inner}
+    </button>
+  );
+}
+
+function SecurityBadgeIcon({ url }: { url: string }) {
+  if (url.startsWith('https://')) {
+    return (
+      <span className="text-accent text-xs shrink-0" title="Secure connection (HTTPS)">
+        🔒
+      </span>
+    );
+  }
+  if (url.startsWith('http://')) {
+    return (
+      <span
+        className="text-[10px] font-medium text-amber-500 bg-amber-500/15 px-1.5 py-0.5 rounded shrink-0"
+        title="This connection is not encrypted. Don't enter passwords or personal details."
+      >
+        Not secure
+      </span>
+    );
+  }
+  if (url.startsWith('dash://')) {
+    return <Logo size={14} className="text-text-secondary" />;
+  }
+  if (url.startsWith('file://')) {
+    return <span className="text-[10px] text-text-tertiary shrink-0">File</span>;
+  }
+  return null;
 }

@@ -1,14 +1,18 @@
-import { app, BrowserWindow, session, type WebContentsView } from 'electron';
+import { app, BrowserWindow, dialog, nativeTheme, session, type WebContentsView } from 'electron';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { TabManager } from './services/tab-manager';
 import { createDownloadManager } from './services/download-manager';
 import { RequestBlocker } from './services/request-blocker';
+import { installYoutubeAdPreload } from './services/youtube-adblock';
 import { BlockedCountTracker } from './services/blocked-count-tracker';
 import { PasswordManager } from './services/password-manager';
 import { PermissionManager } from './services/permission-manager';
 import { ExtensionManager } from './services/extension-manager';
+import { VpnManager } from './services/vpn-manager';
+import { HeaderPolicy } from './services/header-policy';
+import { applyDnsSettings } from './services/dns';
 import { LoginDetector, type DetectedLogin } from './services/login-detector';
 import { registerIpcHandlers } from './ipc/register-ipc';
 import {
@@ -19,14 +23,30 @@ import {
   unregisterInternalPage,
   getAllInternalPageWebContents,
 } from './window-context';
-import { IPC, type DashSettings } from '../shared/ipc-channels';
+import { IPC, type DashSettings, parseHostList } from '../shared/ipc-channels';
+import { clearSiteDataExcept } from './services/exit-cleanup';
 import { getDatabase } from './db/database';
 import { checkForUpdatesInBackground } from './services/updater';
+import { appLog, logPath } from './services/app-log';
+import { readFlags, updateFlags } from './services/app-flags';
+import { setRecoverable } from './services/session-recovery';
+import { installCrashHandlers } from './services/crash-handler';
+import { takeDatabaseRecoveryNote } from './db/database';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env.VITE_DEV_SERVER_URL;
 
 /** Sends an event to every open DASH window's chrome — used for app-wide state like settings and downloads. */
+let vpnRef: VpnManager | null = null;
+const writeStartupLog = appLog;
+const startupLogPath = logPath;
+
+function titleBarOverlayFor(isDark: boolean): { color: string; symbolColor: string; height: number } {
+  return isDark
+    ? { color: '#0b0d10', symbolColor: '#a7adb8', height: 40 }
+    : { color: '#ffffff', symbolColor: '#5a606b', height: 40 };
+}
+
 function broadcast(channel: string, payload: unknown): void {
   for (const { win } of getAllWindowContexts()) {
     win.webContents.send(channel, payload);
@@ -48,7 +68,59 @@ interface PendingLoginSave {
   password: string;
 }
 
+// ---- Before ready: one instance, safe rendering after repeated graphics crashes, unclean-exit detection ----
+const gotInstanceLock = app.requestSingleInstanceLock();
+if (!gotInstanceLock) {
+  // Another DASH already owns this profile; it is brought to the front by its 'second-instance' handler.
+  app.quit();
+}
+const startFlags = gotInstanceLock ? readFlags() : { running: false, gpuFallback: false };
+const lastRunEndedBadly = startFlags.running;
+if (startFlags.gpuFallback) {
+  app.disableHardwareAcceleration();
+  appLog('Starting with software rendering (graphics process crashed repeatedly last time)');
+  updateFlags({ gpuFallback: false }); // one safe run, then try normal rendering again
+}
+if (gotInstanceLock) updateFlags({ running: true });
+if (lastRunEndedBadly) appLog('Previous run did not exit cleanly');
+// A normal quit clears `running` in will-quit; a kill, crash or power loss leaves it set, which is how the next start knows.
+
+app.on('second-instance', () => {
+  const wins = BrowserWindow.getAllWindows();
+  const win = wins[0];
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  }
+});
+
 app.whenReady().then(async () => {
+  if (!gotInstanceLock) return;
+  getDatabase(); // opens/migrates the local SQLite file eagerly (a damaged file is set aside and replaced)
+  const dbNote = takeDatabaseRecoveryNote();
+  if (dbNote) {
+    appLog(`Database was damaged and has been set aside at ${dbNote}`);
+    void dialog.showMessageBox({
+      type: 'warning',
+      message: 'DASH had to start with a fresh data file',
+      detail: `Your saved history, bookmarks and settings could not be read, so the damaged file was kept at:\n${dbNote}\n\nDASH started with empty data.`,
+    });
+  }
+  // After an abnormal exit, the last saved tabs are offered (once) on the New Tab page instead of silently reopened.
+  if (lastRunEndedBadly) {
+    try {
+      setRecoverable(getDatabase().getSessionTabs());
+    } catch {
+      /* nothing to offer */
+    }
+  }
+  installCrashHandlers(() =>
+    getAllWindowContexts().map(({ win, tabManager }) => ({
+      win,
+      handleTabProcessGone: (id, details) => tabManager.handleRenderProcessGone(id, details),
+    }))
+  );
   getDatabase(); // opens/migrates the local SQLite file eagerly
 
   // ---- App-level singletons ----
@@ -58,6 +130,9 @@ app.whenReady().then(async () => {
   // instance if we created more than one. session.defaultSession is itself
   // an app-wide singleton, so anything hooked to it follows the same rule.
   let sharedSettings: DashSettings = getDatabase().getAllSettings();
+  // Make Chromium (and therefore every website's prefers-color-scheme) follow DASH's theme setting.
+  nativeTheme.themeSource = sharedSettings.theme;
+  applyDnsSettings(sharedSettings);
   const tracker = new BlockedCountTracker();
   const passwordManager = new PasswordManager();
   const extensionManager = new ExtensionManager();
@@ -67,11 +142,24 @@ app.whenReady().then(async () => {
   // so extensions are active from the very first page a user sees.
   await extensionManager.restorePersisted();
 
+  // VPN (proxy tunnel). Off unless the user turned on "connect on startup"; credentials never leave this process.
+  const vpn = (vpnRef = new VpnManager((state) => broadcast(IPC.VPN_STATE_CHANGED, state), writeStartupLog));
+  vpn.addSession(session.defaultSession);
+  app.on('login', (event, _wc, _details, authInfo, callback) => {
+    const creds = vpn.handleLogin(authInfo);
+    if (creds) {
+      event.preventDefault();
+      callback(creds.username, creds.password);
+    }
+  });
+  await vpn.connectOnStartupIfWanted();
+
   const downloadManager = createDownloadManager((entry) => {
     broadcast(IPC.DOWNLOAD_STATE_CHANGED, entry);
   });
 
   new RequestBlocker(session.defaultSession, () => sharedSettings, tracker);
+  installYoutubeAdPreload([session.defaultSession], () => sharedSettings.adBlockingEnabled, () => sharedSettings.sendPrivacySignals, () => sharedSettings.fingerprintProtection);
 
   const permissionManager = new PermissionManager(
     session.defaultSession,
@@ -108,7 +196,7 @@ app.whenReady().then(async () => {
   // Login detection is intentionally NOT attached to any private-browsing
   // session — offering to save a password is itself a record that you
   // logged into that site, which private browsing should never create.
-  new LoginDetector(session.defaultSession, handleDetectedLogin);
+  new HeaderPolicy(session.defaultSession, () => sharedSettings, new LoginDetector(handleDetectedLogin));
 
   function respondToLoginSavePrompt(promptId: string, save: boolean): void {
     const pending = pendingLoginSaves.get(promptId);
@@ -126,7 +214,12 @@ app.whenReady().then(async () => {
     if (saveSessionTimeout) clearTimeout(saveSessionTimeout);
     saveSessionTimeout = setTimeout(() => {
       const perWindowUrls = getAllWindowContexts().map(({ tabManager }) => tabManager.getRestorableUrls());
-      getDatabase().saveSessionTabs(perWindowUrls);
+      if (exitCleanupDone) return;
+      try {
+        getDatabase().saveSessionTabs(perWindowUrls);
+      } catch (err) {
+        appLog(`Could not save session: ${String(err)}`);
+      }
     }, 800);
   }
 
@@ -136,10 +229,24 @@ app.whenReady().then(async () => {
     passwordManager,
     permissionManager,
     extensionManager,
+    vpn,
     onSettingsChanged: (updated) => {
       sharedSettings = updated;
+      nativeTheme.themeSource = updated.theme;
+      applyDnsSettings(updated);
+      if (process.platform !== 'darwin') {
+        for (const { win } of getAllWindowContexts()) {
+          try {
+            win.setTitleBarOverlay(titleBarOverlayFor(nativeTheme.shouldUseDarkColors));
+            win.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#0b0d10' : '#ffffff');
+          } catch {
+            /* window may be closing */
+          }
+        }
+      }
       broadcast(IPC.SETTINGS_STATE_CHANGED, updated);
     },
+    onBookmarksChanged: () => broadcast(IPC.BOOKMARKS_CHANGED, null),
     createWindow: () => createWindow(),
     respondToLoginSavePrompt,
   });
@@ -152,10 +259,13 @@ app.whenReady().then(async () => {
       height: 800,
       minWidth: 760,
       minHeight: 480,
-      frame: false, // custom chrome — drawn by the React toolbar
-      backgroundColor: '#0b0d10',
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#0b0d10' : '#ffffff',
+      // Native window buttons (minimize/maximize/close) drawn as an overlay on top of our
+      // custom tab strip; macOS gets its traffic lights. Without this a frameless window
+      // has no way to be minimized or closed with the mouse.
       titleBarStyle: 'hidden',
-      icon: path.join(__dirname, '../../resources/icon.png'),
+      ...(process.platform !== 'darwin' ? { titleBarOverlay: titleBarOverlayFor(nativeTheme.shouldUseDarkColors) } : {}),
+      icon: path.join(__dirname, '../../resources/icon-512.png'),
       webPreferences: {
         preload: path.join(__dirname, '../preload/index.js'),
         contextIsolation: true,
@@ -220,7 +330,9 @@ app.whenReady().then(async () => {
     // Private tabs in THIS window get their own isolated session, so it
     // needs its own RequestBlocker (one onBeforeRequest listener per
     // session, remember) and its own non-persisted PermissionManager.
-    new RequestBlocker(tabManager.getPrivateSession(), () => sharedSettings, tracker);
+    new RequestBlocker(tabManager.getPrivateSession(), () => sharedSettings, tracker, false);
+    installYoutubeAdPreload([tabManager.getPrivateSession()], () => sharedSettings.adBlockingEnabled, () => sharedSettings.sendPrivacySignals, () => sharedSettings.fingerprintProtection);
+    new HeaderPolicy(tabManager.getPrivateSession(), () => sharedSettings);
     new PermissionManager(
       tabManager.getPrivateSession(),
       (requestId, origin, permission) => {
@@ -229,6 +341,7 @@ app.whenReady().then(async () => {
       false // never persisted — private browsing
     );
 
+    vpn.addSession(tabManager.getPrivateSession());
     registerWindowContext({ win, tabManager });
 
     win.webContents.once('did-finish-load', () => {
@@ -240,6 +353,7 @@ app.whenReady().then(async () => {
     });
 
     win.on('closed', () => {
+      vpn.removeSession(tabManager.getPrivateSession());
       tabManager.dispose();
       unregisterWindowContext(win.webContents.id);
       scheduleSessionSave();
@@ -262,7 +376,66 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 
-  checkForUpdatesInBackground();
+  // The update check is a direct request outside the tunnel, so skip it while the VPN is routing traffic.
+  if (!vpn.isActive()) checkForUpdatesInBackground();
+}).catch((err: unknown) => {
+  // A startup failure used to leave a running process with no window. Say what went wrong instead.
+  const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
+  writeStartupLog(`Startup failed: ${message}`);
+  dialog.showErrorBox('DASH could not start', `${message}\n\nDetails were saved to ${startupLogPath()}`);
+  app.quit();
+});
+
+// Auto-clear on exit. Runs once: the first will-quit is held while storage is wiped, then quit resumes.
+let exitCleanupDone = false;
+function markCleanExit(): void {
+  try {
+    getDatabase().close();
+  } catch {
+    /* already closed */
+  }
+  updateFlags({ running: false });
+}
+app.on('will-quit', (event) => {
+  if (exitCleanupDone) return;
+  exitCleanupDone = true;
+  try {
+    vpnRef?.dispose();
+  } catch {
+    /* quitting anyway */
+  }
+  let settings: DashSettings;
+  try {
+    settings = getDatabase().getAllSettings();
+  } catch {
+    markCleanExit();
+    return;
+  }
+  if (!settings.clearHistoryOnExit && !settings.clearSiteDataOnExit) {
+    markCleanExit();
+    return;
+  }
+  event.preventDefault();
+  void (async () => {
+    writeStartupLog(`Exit cleanup started (history=${settings.clearHistoryOnExit}, siteData=${settings.clearSiteDataOnExit})`);
+    try {
+      if (settings.clearHistoryOnExit) getDatabase().clearHistory();
+      if (settings.clearSiteDataOnExit) {
+        await clearSiteDataExcept(
+          session.defaultSession,
+          parseHostList(settings.keepSiteDataHosts),
+          getDatabase().queryHistory('', 5000).map((h) => h.url),
+          writeStartupLog
+        );
+      }
+    } catch (err) {
+      writeStartupLog(`Exit cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      writeStartupLog('Exit cleanup finished');
+      markCleanExit();
+      app.quit();
+    }
+  })();
 });
 
 app.on('window-all-closed', () => {

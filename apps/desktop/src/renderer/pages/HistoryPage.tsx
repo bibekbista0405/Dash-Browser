@@ -1,3 +1,4 @@
+import { EmptyState } from '../components/EmptyState';
 import { useEffect, useState } from 'react';
 import { useHistoryStore } from '../store/history-store';
 import type { HistoryEntry } from '../../shared/ipc-channels';
@@ -91,9 +92,11 @@ export function HistoryPage({ tabId }: { tabId: string }) {
       {isLoading && entries.length === 0 && <div className="text-[13px] text-text-tertiary">Loading…</div>}
 
       {!isLoading && entries.length === 0 && (
-        <div className="text-[13px] text-text-tertiary">
-          {query ? 'No matching history.' : 'No browsing history yet.'}
-        </div>
+        <EmptyState
+          icon="↺"
+          title={query ? 'No matching history' : 'No browsing history yet'}
+          hint={query ? 'Try a different word.' : 'Pages you visit in normal tabs show up here. Private tabs never do.'}
+        />
       )}
 
       {Array.from(grouped.entries()).map(([day, dayEntries]) => (

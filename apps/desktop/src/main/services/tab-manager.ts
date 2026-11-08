@@ -1,10 +1,18 @@
-import { BrowserWindow, Menu, dialog, WebContentsView, clipboard, session, type Session } from 'electron';
+import fs from 'node:fs';
+import { app, BrowserWindow, Menu, dialog, nativeTheme, WebContentsView, clipboard, session, type Session } from 'electron';
 import { randomUUID } from 'node:crypto';
-import type { TabState, DashSettings } from '../../shared/ipc-channels';
-import { SLEEP_THRESHOLD_MINUTES, resolveAddressBarInput, NEW_TAB_URL, BOOKMARKS_BAR_HEIGHT } from '../../shared/ipc-channels';
+import type { TabState, DashSettings, TabGroup, TabGroupColor } from '../../shared/ipc-channels';
+import { IPC } from '../../shared/ipc-channels';
+import { TAB_GROUP_COLORS, SLEEP_THRESHOLD_MINUTES, resolveAddressBarInput, NEW_TAB_URL, BOOKMARKS_BAR_HEIGHT, parseHostList, hostInList } from '../../shared/ipc-channels';
 import { getDatabase } from '../db/database';
+import { buildReaderScript } from './reader-mode';
 import type { BlockedCountTracker } from './blocked-count-tracker';
+import { isBrowserShortcut } from './shortcut-filter';
 import { buildNewTabHtml, NEWTAB_ACTION_PREFIX } from './new-tab-page';
+import { dismissRecoverable, recoverableCount, takeRecoverable } from './session-recovery';
+import { appLog } from './app-log';
+import { LOGO_FAVICON_DATA_URI } from './logo-data';
+import { buildErrorPageDataUrl, failedUrlFromErrorPage, RETRY_PREFIX, buildCrashPageDataUrl } from './error-page';
 
 /** Sentinel URL representing DASH's own New Tab Page — never a real network address. */
 /**
@@ -42,9 +50,12 @@ interface Tab {
   lastActiveAt: number;
   isPinned: boolean;
   isMuted: boolean;
+  groupId: string | null;
   zoomFactor: number;
   /** True while showing DASH's own New Tab Page (a data: URL under the hood — this flag is what lets the UI show the clean sentinel instead). */
   isNewTabPage: boolean;
+  /** Recent renderer-crash times, used to stop an endless reload loop. */
+  crashTimes?: number[];
   /** Which real internal page (history/downloads/bookmarks/settings) this tab is showing, if any. */
   internalPage: InternalPageId | null;
   /** Captured straight from the page's own <link rel="icon"> via page-favicon-updated — never a third-party favicon service. */
@@ -67,10 +78,13 @@ export class TabManager {
   // DOM regardless of CSS z-index. While any chrome overlay (menu, dropdown)
   // is open we detach the active view so the overlay is visible.
   private overlayDepth = 0;
+  private overlaySnapshot: string | null = null;
   private onStateChange: (state: TabState) => void;
   private getSettings: () => DashSettings;
+  private freedKb = 0;
   private sleepTimer: ReturnType<typeof setInterval>;
   /** Most-recently-closed first. Private tabs are never pushed here — closing one should leave no trace. */
+  private groups: Map<string, TabGroup> = new Map();
   private closedTabs: { url: string; title: string; isPinned: boolean }[] = [];
 
   /**
@@ -115,6 +129,18 @@ export class TabManager {
     // Chrome/Firefox distinguish the two.
     const targetUrl = url ?? NEW_TAB_URL;
 
+    // Like Chrome's chrome:// pages: opening History/Downloads/Bookmarks/Settings again
+    // jumps to the tab that already shows it instead of piling up duplicates.
+    if (!isPrivate && targetUrl in INTERNAL_URL_TO_PAGE) {
+      const wanted = INTERNAL_URL_TO_PAGE[targetUrl];
+      for (const existing of this.tabs.values()) {
+        if (!existing.isPrivate && existing.internalPage === wanted) {
+          this.switchTab(existing.id);
+          return this.getTabState(existing);
+        }
+      }
+    }
+
     const tab: Tab = {
       id,
       view: null,
@@ -126,6 +152,7 @@ export class TabManager {
       lastActiveAt: Date.now(),
       isPinned: false,
       isMuted: false,
+      groupId: null,
       zoomFactor: 1,
       isNewTabPage: targetUrl === NEW_TAB_URL,
       internalPage: INTERNAL_URL_TO_PAGE[targetUrl] ?? null,
@@ -156,6 +183,10 @@ export class TabManager {
     }
     this.tabs.delete(id);
     this.tabOrder = this.tabOrder.filter((t) => t !== id);
+    if (tab.groupId) {
+      this.dropIfEmpty(tab.groupId);
+      this.emitGroup(tab.groupId);
+    }
 
     if (this.activeTabId === id) {
       this.activeTabId = null;
@@ -186,6 +217,7 @@ export class TabManager {
     const tab = this.tabs.get(id);
     if (!tab) return;
     tab.isPinned = !tab.isPinned;
+    if (tab.isPinned && tab.groupId) this.setTabGroup(id, null);
     // Pinned tabs move to the front, mirroring standard browser behavior.
     if (tab.isPinned) {
       this.tabOrder = [id, ...this.tabOrder.filter((t) => t !== id)];
@@ -261,9 +293,128 @@ export class TabManager {
     if (!result.canceled && result.filePath) await this.savePage(id, result.filePath);
   }
 
+  private async savePdfDialog(id: string): Promise<void> {
+    const wc = this.tabs.get(id)?.view?.webContents;
+    if (!wc) return;
+    const title = (wc.getTitle() || 'page').replace(/[\\/:*?"<>|]/g, '_');
+    const result = await dialog.showSaveDialog(this.win, { defaultPath: `${title}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+    if (!result.canceled && result.filePath) await this.savePdf(id, result.filePath);
+  }
+
+  async savePdf(id: string, savePath: string): Promise<void> {
+    const wc = this.tabs.get(id)?.view?.webContents;
+    if (!wc) return;
+    const data = await wc.printToPDF({ printBackground: true });
+    await fs.promises.writeFile(savePath, data);
+  }
+
+  /** The page, session and privacy mode of a tab, for the site panel. Null when the tab has no live page. */
+  getSiteContext(id: string): { url: string; session: Session; isPrivate: boolean } | null {
+    const tab = this.tabs.get(id);
+    if (!tab?.view || tab.view.webContents.isDestroyed()) return null;
+    return {
+      url: failedUrlFromErrorPage(tab.view.webContents.getURL()) ?? tab.view.webContents.getURL(),
+      session: tab.view.webContents.session,
+      isPrivate: tab.isPrivate,
+    };
+  }
+
+  /** Sleeping-tab numbers for Settings. freedKb is the renderer memory those tabs held at the moment they were put to sleep (an estimate: tabs of one site can share a process). */
+  getSleepStats(): { sleeping: number; freedKb: number } {
+    let sleeping = 0;
+    for (const t of this.tabs.values()) if (t.isSleeping) sleeping++;
+    return { sleeping, freedKb: this.freedKb };
+  }
+
+  /**
+   * A tab's page process died (crash, out of memory, killed). Show a clear page with Try again instead of a blank view.
+   * Returns false when the process did not belong to one of this window's tabs.
+   */
+  handleRenderProcessGone(webContentsId: number, details: { reason: string }): boolean {
+    const tab = [...this.tabs.values()].find((t) => t.view && !t.view.webContents.isDestroyed() && t.view.webContents.id === webContentsId);
+    if (!tab || !tab.view) return false;
+    if (details.reason === 'clean-exit') return true;
+    const wc = tab.view.webContents;
+    appLog(`Tab process gone: reason=${details.reason} url=${tab.isPrivate ? '(private)' : wc.getURL().slice(0, 200)}`);
+    const now = Date.now();
+    tab.crashTimes = (tab.crashTimes ?? []).filter((t) => now - t < 30_000);
+    tab.crashTimes.push(now);
+    const looping = tab.crashTimes.length > 2;
+    if (tab.crashTimes.length > 6) {
+      appLog('Tab keeps crashing; not reloading it again');
+      return true;
+    }
+    if (tab.internalPage && !looping) {
+      this.loadInternalPage(tab.view, tab.internalPage, tab.id).catch(() => undefined);
+    } else if (tab.isNewTabPage && !looping) {
+      wc.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(this.newTabHtml())}`).catch(() => undefined);
+    } else {
+      const lastUrl = failedUrlFromErrorPage(wc.getURL()) ?? (tab.isPrivate ? '' : wc.getURL());
+      const target = tab.internalPage || tab.isNewTabPage || !/^https?:/i.test(lastUrl) ? 'about:blank' : lastUrl;
+      wc.loadURL(buildCrashPageDataUrl(target, details.reason, nativeTheme.shouldUseDarkColors)).catch(() => undefined);
+    }
+    return true;
+  }
+
+  private promptingUnresponsive = false;
+  private async promptUnresponsive(tabId: string): Promise<void> {
+    if (this.promptingUnresponsive) return;
+    this.promptingUnresponsive = true;
+    try {
+      const { response } = await dialog.showMessageBox(this.win, {
+        type: 'warning',
+        message: 'This page is not responding',
+        detail: 'You can wait for it to recover, or close the page.',
+        buttons: ['Wait', 'Close page'],
+        defaultId: 0,
+        cancelId: 0,
+      });
+      if (response === 1) this.closeTab(tabId);
+    } finally {
+      this.promptingUnresponsive = false;
+    }
+  }
+
   async savePage(id: string, savePath: string): Promise<void> {
     await this.tabs.get(id)?.view?.webContents.savePage(savePath, 'HTMLComplete');
   }
+  private newTabHtml(): string {
+    const db = getDatabase();
+    // Read from the database, not the cached copy: this also runs while a settings change is being applied.
+    const settings = db.getAllSettings();
+    return buildNewTabHtml(
+      db.getShortcutSites(8),
+      settings.searchEngine,
+      db.countHiddenSites(),
+      nativeTheme.shouldUseDarkColors,
+      settings.newTabCustomCssEnabled ? settings.newTabCustomCss : '',
+      settings.newTabCustomCss.trim().length > 0,
+      recoverableCount()
+    );
+  }
+
+  /** Re-renders every open New Tab Page (e.g. after the custom CSS changed). */
+  refreshNewTabPages(): void {
+    for (const tab of this.tabs.values()) {
+      const wc = tab.view?.webContents;
+      if (tab.isNewTabPage && wc && !wc.isDestroyed() && wc.getURL().startsWith('data:')) {
+        wc.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(this.newTabHtml())}`).catch(() => undefined);
+      }
+    }
+  }
+
+  /** Toggles reading mode on a normal web page. Returns 'opened' | 'closed' | 'unreadable' | 'unsupported'. */
+  async toggleReader(id: string): Promise<'opened' | 'closed' | 'unreadable' | 'unsupported'> {
+    const tab = this.tabs.get(id);
+    const wc = tab?.view?.webContents;
+    if (!tab || !wc || tab.internalPage || !/^https?:/i.test(wc.getURL())) return 'unsupported';
+    try {
+      return (await wc.executeJavaScript(buildReaderScript(nativeTheme.shouldUseDarkColors), true)) as 'opened' | 'closed' | 'unreadable';
+    } catch {
+      return 'unreadable';
+    }
+  }
+
   toggleDevTools(id: string): void {
     const wc = this.tabs.get(id)?.view?.webContents;
     if (!wc) return;
@@ -362,7 +513,12 @@ export class TabManager {
     const tab = this.tabs.get(id);
     if (!tab) return;
     if (tab.isSleeping) this.wake(tab);
-    else tab.view?.webContents.reload();
+    else {
+      const wc = tab.view?.webContents;
+      const failed = wc ? failedUrlFromErrorPage(wc.getURL()) : null;
+      if (failed) this.navigate(id, failed);
+      else wc?.reload();
+    }
   }
 
   stop(id: string): void {
@@ -395,17 +551,34 @@ export class TabManager {
       .map((t) => t.lastKnownUrl);
   }
 
-  pushOverlay(): void {
+  /**
+   * Opens a chrome overlay. The native page view always paints above the
+   * toolbar's DOM, so it has to be detached for the menu to be visible; to
+   * keep the page from "vanishing", a snapshot is captured first and
+   * returned so the toolbar can paint it in the page's place.
+   */
+  async pushOverlay(): Promise<string | null> {
     this.overlayDepth += 1;
-    if (this.overlayDepth === 1 && this.activeTabId) {
-      const tab = this.tabs.get(this.activeTabId);
-      if (tab?.view) this.win.contentView.removeChildView(tab.view);
+    if (this.overlayDepth > 1) return this.overlaySnapshot;
+    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : undefined;
+    let snapshot: string | null = null;
+    if (tab?.view) {
+      try {
+        const image = await tab.view.webContents.capturePage();
+        if (!image.isEmpty()) snapshot = `data:image/jpeg;base64,${image.toJPEG(80).toString('base64')}`;
+      } catch {
+        snapshot = null;
+      }
+      if (this.overlayDepth > 0 && tab.view) this.win.contentView.removeChildView(tab.view);
     }
+    this.overlaySnapshot = snapshot;
+    return snapshot;
   }
 
   popOverlay(): void {
     this.overlayDepth = Math.max(0, this.overlayDepth - 1);
     if (this.overlayDepth === 0) {
+      this.overlaySnapshot = null;
       this.attachActiveViewIfAllowed();
       this.layoutActiveView();
     }
@@ -440,6 +613,16 @@ export class TabManager {
     for (const tab of this.tabs.values()) {
       if (tab.isActive || tab.isSleeping || !tab.view) continue;
       if (now - tab.lastActiveAt < thresholdMs) continue;
+      const never = parseHostList(this.getSettings().neverSleepHosts);
+      if (never.length > 0) {
+        let host = '';
+        try {
+          host = new URL(tab.lastKnownUrl || tab.view.webContents.getURL()).hostname;
+        } catch {
+          /* internal page */
+        }
+        if (host && hostInList(host, never)) continue;
+      }
       this.sleep(tab);
     }
   }
@@ -451,11 +634,20 @@ export class TabManager {
     // the clean sentinel so waking this tab later regenerates a fresh page
     // instead of trying to reload a meaningless internal file path.
     if (!tab.isNewTabPage && !tab.internalPage) {
-      tab.lastKnownUrl = tab.view.webContents.getURL() || tab.lastKnownUrl;
+      tab.lastKnownUrl = failedUrlFromErrorPage(tab.view.webContents.getURL()) ?? (tab.view.webContents.getURL() || tab.lastKnownUrl);
       tab.lastKnownTitle = tab.view.webContents.getTitle() || tab.lastKnownTitle;
     }
 
     if (tab.internalPage) this.untrustInternalPage(tab.view.webContents.id);
+    try {
+      const pid = tab.view.webContents.getOSProcessId();
+      // Only count memory that really goes away: skip if another live tab shares this renderer process.
+      const shared = [...this.tabs.values()].some((t) => t !== tab && t.view && !t.view.webContents.isDestroyed() && t.view.webContents.getOSProcessId() === pid);
+      const m = shared ? undefined : app.getAppMetrics().find((x) => x.pid === pid);
+      if (m) this.freedKb += m.memory.workingSetSize;
+    } catch {
+      /* metrics unavailable: skip the estimate */
+    }
     this.win.contentView.removeChildView(tab.view);
     tab.view.webContents.close();
     tab.view = null;
@@ -479,6 +671,8 @@ export class TabManager {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        // Enables Chromium's built-in PDF viewer.
+        plugins: true,
         // Private tabs get a dedicated in-memory session that shares nothing
         // with the normal profile; normal tabs use the persistent default.
         session: tab.isPrivate ? this.privateSession : session.defaultSession,
@@ -505,8 +699,7 @@ export class TabManager {
       // never stale placeholder data. No preload/IPC bridge needed at all:
       // it's a self-contained document with real <a href> links and a real
       // <form> for search, so ordinary navigation handles everything.
-      const db = getDatabase();
-      const html = buildNewTabHtml(db.getShortcutSites(8), this.getSettings().searchEngine, db.countHiddenSites());
+      const html = this.newTabHtml();
       view.webContents.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch((err) => {
         console.error('[DASH] Failed to load New Tab Page:', err.message);
       });
@@ -689,7 +882,8 @@ export class TabManager {
           { label: 'Reload', click: () => wc.reload() },
           { type: 'separator' },
           { label: 'Save page as…', click: () => { void this.promptSavePage(tab.id); } },
-          { label: 'Print…', click: () => this.print(tab.id) }
+          { label: 'Print…', click: () => this.print(tab.id) },
+          { label: 'Save as PDF…', click: () => { void this.savePdfDialog(tab.id); } }
         );
       }
       items.push(
@@ -710,6 +904,22 @@ export class TabManager {
 
     const push = () => this.onStateChange(this.getTabState(tab));
 
+    // Browser shortcuts must work while the page has focus.
+    wc.on('before-input-event', (event, input) => {
+      if (!isBrowserShortcut(input)) return;
+      event.preventDefault();
+      this.win.webContents.send(IPC.SHORTCUT_KEY, {
+        key: input.key,
+        ctrlKey: input.control,
+        metaKey: input.meta,
+        shiftKey: input.shift,
+        altKey: input.alt,
+      });
+    });
+
+    wc.on('unresponsive', () => {
+      void this.promptUnresponsive(tab.id);
+    });
     wc.on('will-navigate', (event, targetUrl) => {
       if (tab.isNewTabPage && targetUrl.startsWith(NEWTAB_ACTION_PREFIX)) {
         event.preventDefault();
@@ -727,13 +937,19 @@ export class TabManager {
             if (url.length < 2048) db.addCustomShortcut(url, u.searchParams.get('title') ?? '');
           } else if (u.pathname === '/restore') {
             db.restoreHiddenSites();
+          } else if (u.pathname === '/restore-session') {
+            for (const url of takeRecoverable()) this.createTab(url);
+          } else if (u.pathname === '/dismiss-session') {
+            dismissRecoverable();
+          } else if (u.pathname === '/theme') {
+            // Classic / Custom switch on the home page itself.
+            db.setSetting('newTabCustomCssEnabled', u.searchParams.get('mode') === 'custom');
           }
         } catch {
           /* malformed action URL: ignore */
         }
         setImmediate(() => {
-          const topSites = getDatabase();
-          const html = buildNewTabHtml(topSites.getShortcutSites(8), this.getSettings().searchEngine, topSites.countHiddenSites());
+          const html = this.newTabHtml();
           wc.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch(() => undefined);
         });
         return;
@@ -757,18 +973,44 @@ export class TabManager {
       if (!tab.isPrivate && !tab.internalPage && !tab.isNewTabPage) this.tryAutofill(wc);
       // Record real history — but NEVER for private tabs. This is a hard
       // privacy rule, not a UI toggle: private browsing must leave no trace.
-      if (!tab.isPrivate) {
+      if (!tab.isPrivate && !tab.internalPage) {
         const url = wc.getURL();
         const title = wc.getTitle();
-        if (url) getDatabase().addHistoryEntry(url, title || url, tab.faviconUrl);
+        if (url && !url.startsWith('data:')) getDatabase().addHistoryEntry(url, title || url, tab.faviconUrl);
       }
     });
     wc.on('page-title-updated', push);
+
+    // A failed top-level load would otherwise leave a blank white page.
+    wc.on('did-fail-load', (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame || errorCode === -3 /* ERR_ABORTED: user stop, download, redirect */) return;
+      if (!/^https?:|^ftp:/i.test(validatedURL)) return;
+      wc.loadURL(buildErrorPageDataUrl(validatedURL, errorCode, errorDescription, nativeTheme.shouldUseDarkColors)).catch(() => undefined);
+    });
+    wc.on('will-navigate', (event, targetUrl) => {
+      if (targetUrl === NEW_TAB_URL && failedUrlFromErrorPage(wc.getURL())) {
+        event.preventDefault();
+        this.navigate(tab.id, NEW_TAB_URL);
+        return;
+      }
+      if (!targetUrl.startsWith(RETRY_PREFIX)) return;
+      event.preventDefault();
+      try {
+        const retryUrl = new URL(targetUrl).searchParams.get('url') ?? '';
+        if (/^https?:/i.test(retryUrl)) this.navigate(tab.id, retryUrl);
+      } catch {
+        /* malformed retry link: ignore */
+      }
+    });
     wc.on('page-favicon-updated', (_e, favicons) => {
       // Straight from the page's own <link rel="icon"> — same-origin, no
       // third-party favicon service involved, unlike Chrome's default
       // favicon fetcher (which leaks your browsing to Google's servers).
       tab.faviconUrl = favicons[0] ?? null;
+      if (tab.faviconUrl && !tab.isPrivate && !tab.internalPage && !tab.isNewTabPage) {
+        const pageUrl = wc.getURL();
+        if (pageUrl) getDatabase().setLatestHistoryFavicon(pageUrl, tab.faviconUrl);
+      }
       push();
     });
     wc.on('did-navigate', (_e, navigatedUrl) => {
@@ -796,7 +1038,7 @@ export class TabManager {
         isLoading: false,
         canGoBack: wc ? wc.navigationHistory.canGoBack() : false,
         canGoForward: false,
-        favicon: null, // deliberately no favicon on our own New Tab Page
+        favicon: LOGO_FAVICON_DATA_URI,
         isActive: tab.isActive,
         isPrivate: tab.isPrivate,
         isSleeping: tab.isSleeping,
@@ -804,6 +1046,7 @@ export class TabManager {
         isPinned: tab.isPinned,
         isMuted: tab.isMuted,
         zoomPercent: Math.round(tab.zoomFactor * 100),
+        group: this.groupOf(tab),
       };
     }
     if (tab.internalPage) {
@@ -820,7 +1063,7 @@ export class TabManager {
         isLoading: wc ? wc.isLoading() : false,
         canGoBack: wc ? wc.navigationHistory.canGoBack() : false,
         canGoForward: wc ? wc.navigationHistory.canGoForward() : false,
-        favicon: null,
+        favicon: LOGO_FAVICON_DATA_URI,
         isActive: tab.isActive,
         isPrivate: tab.isPrivate,
         isSleeping: tab.isSleeping,
@@ -828,16 +1071,18 @@ export class TabManager {
         isPinned: tab.isPinned,
         isMuted: tab.isMuted,
         zoomPercent: Math.round(tab.zoomFactor * 100),
+        group: this.groupOf(tab),
       };
     }
+    const failedUrl = wc ? failedUrlFromErrorPage(wc.getURL()) : null;
     return {
       id: tab.id,
       title: wc ? wc.getTitle() || wc.getURL() || 'New Tab' : tab.lastKnownTitle,
-      url: wc ? wc.getURL() : tab.lastKnownUrl,
+      url: failedUrl ?? (wc ? wc.getURL() : tab.lastKnownUrl),
       isLoading: wc ? wc.isLoading() : false,
       canGoBack: wc ? wc.navigationHistory.canGoBack() : false,
       canGoForward: wc ? wc.navigationHistory.canGoForward() : false,
-      favicon: tab.faviconUrl,
+      favicon: tab.faviconUrl ?? (tab.isNewTabPage || tab.internalPage ? LOGO_FAVICON_DATA_URI : null),
       isActive: tab.isActive,
       isPrivate: tab.isPrivate,
       isSleeping: tab.isSleeping,
@@ -845,6 +1090,77 @@ export class TabManager {
       isPinned: tab.isPinned,
       isMuted: tab.isMuted,
       zoomPercent: Math.round(tab.zoomFactor * 100),
+      group: this.groupOf(tab),
     };
+  }
+
+  // ---- Tab groups (session-only) ----
+  private groupOf(tab: Tab): TabGroup | null {
+    return tab.groupId ? (this.groups.get(tab.groupId) ?? null) : null;
+  }
+
+  private emitGroup(groupId: string | null): void {
+    for (const t of this.tabs.values()) {
+      if (groupId && t.groupId === groupId) this.onStateChange(this.getTabState(t));
+    }
+    this.win.webContents.send(IPC.TABS_ORDER, this.tabOrder);
+    this.notifyTabsChanged();
+  }
+
+  /** target: 'new' makes a fresh group, a group id joins it, null removes the tab from its group. */
+  setTabGroup(id: string, target: string | null): void {
+    const tab = this.tabs.get(id);
+    if (!tab) return;
+    const previous = tab.groupId;
+    if (target === null) {
+      tab.groupId = null;
+    } else {
+      if (tab.isPinned) return; // pinned tabs stay out of groups
+      let gid = target;
+      if (target === 'new') {
+        gid = randomUUID();
+        const color = TAB_GROUP_COLORS[this.groups.size % TAB_GROUP_COLORS.length];
+        this.groups.set(gid, { id: gid, name: '', color, collapsed: false });
+      } else if (!this.groups.has(gid)) {
+        return;
+      }
+      tab.groupId = gid;
+      // Keep a group's tabs contiguous: park this tab right after the group's last member.
+      const others = this.tabOrder.filter((t) => t !== id);
+      let last = -1;
+      others.forEach((t, i) => {
+        if (this.tabs.get(t)?.groupId === gid) last = i;
+      });
+      if (last >= 0) {
+        others.splice(last + 1, 0, id);
+        this.tabOrder = others;
+      }
+    }
+    this.onStateChange(this.getTabState(tab));
+    this.dropIfEmpty(previous);
+    this.emitGroup(tab.groupId);
+    if (previous && previous !== tab.groupId) this.emitGroup(previous);
+  }
+
+  private dropIfEmpty(groupId: string | null): void {
+    if (!groupId) return;
+    for (const t of this.tabs.values()) if (t.groupId === groupId) return;
+    this.groups.delete(groupId);
+  }
+
+  updateGroup(groupId: string, patch: { name?: string; color?: string; collapsed?: boolean }): void {
+    const g = this.groups.get(groupId);
+    if (!g) return;
+    if (patch.name !== undefined) g.name = patch.name.slice(0, 40);
+    if (patch.color !== undefined && (TAB_GROUP_COLORS as readonly string[]).includes(patch.color)) {
+      g.color = patch.color as TabGroupColor;
+    }
+    if (patch.collapsed !== undefined) g.collapsed = patch.collapsed;
+    this.emitGroup(groupId);
+  }
+
+  closeGroup(groupId: string): void {
+    const ids = [...this.tabs.values()].filter((t) => t.groupId === groupId).map((t) => t.id);
+    for (const id of ids) this.closeTab(id);
   }
 }

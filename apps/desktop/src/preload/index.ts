@@ -9,18 +9,31 @@ import {
   type BlockStats,
   type PasswordEntry,
   type PermissionRecord,
+  type SiteInfo,
   type PermissionName,
   type PermissionDecision,
   type AddressSuggestion,
   type FindResult,
   type ExtensionInfo,
   type TaskProcessInfo,
+  type ImportSource,
+  type ImportResult,
+  type VpnState,
+  type VpnConfig,
 } from '../shared/ipc-channels';
 
 /**
  * The renderer NEVER gets direct access to ipcRenderer, Node, or fs.
  * Everything it can do is explicitly whitelisted here.
  */
+export interface ForwardedKey {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+}
+
 const dashApi = {
   tabs: {
     create: (url?: string, isPrivate?: boolean): Promise<TabState> => ipcRenderer.invoke(IPC.TAB_CREATE, url, isPrivate),
@@ -35,6 +48,19 @@ const dashApi = {
     snapshot: (): Promise<TabState[]> => ipcRenderer.invoke(IPC.TABS_SNAPSHOT),
     duplicate: (id: string): Promise<TabState | null> => ipcRenderer.invoke(IPC.TAB_DUPLICATE, id),
     togglePin: (id: string): Promise<void> => ipcRenderer.invoke(IPC.TAB_TOGGLE_PIN, id),
+    setGroup: (id: string, target: string | null): Promise<void> => ipcRenderer.invoke(IPC.TAB_SET_GROUP, id, target),
+    updateGroup: (groupId: string, patch: { name?: string; color?: string; collapsed?: boolean }): Promise<void> =>
+      ipcRenderer.invoke(IPC.GROUP_UPDATE, groupId, patch),
+    closeGroup: (groupId: string): Promise<void> => ipcRenderer.invoke(IPC.GROUP_CLOSE, groupId),
+    sleepStats: (): Promise<{ sleeping: number; freedMb: number }> => ipcRenderer.invoke(IPC.TABS_SLEEP_STATS),
+    siteInfo: (id: string): Promise<SiteInfo | null> => ipcRenderer.invoke(IPC.SITE_INFO, id),
+    setSiteProtection: (host: string, off: boolean): Promise<void> => ipcRenderer.invoke(IPC.SITE_SET_PROTECTION, host, off),
+    clearSiteData: (id: string): Promise<number> => ipcRenderer.invoke(IPC.SITE_CLEAR_DATA, id),
+    onOrder: (cb: (ids: string[]) => void): (() => void) => {
+      const listener = (_e: unknown, ids: string[]) => cb(ids);
+      ipcRenderer.on(IPC.TABS_ORDER, listener);
+      return () => ipcRenderer.removeListener(IPC.TABS_ORDER, listener);
+    },
     toggleMute: (id: string): Promise<void> => ipcRenderer.invoke(IPC.TAB_TOGGLE_MUTE, id),
     reopenClosed: (): Promise<TabState | null> => ipcRenderer.invoke(IPC.TAB_REOPEN_CLOSED),
     reorder: (orderedIds: string[]): Promise<void> => ipcRenderer.invoke(IPC.TAB_REORDER, orderedIds),
@@ -56,6 +82,17 @@ const dashApi = {
     list: (): Promise<BookmarkEntry[]> => ipcRenderer.invoke(IPC.BOOKMARK_LIST),
     export: (): Promise<{ exported: number } | null> => ipcRenderer.invoke(IPC.BOOKMARKS_EXPORT),
     import: (): Promise<{ imported: number } | null> => ipcRenderer.invoke(IPC.BOOKMARKS_IMPORT),
+    setFolder: (id: number, folder: string | null): Promise<void> => ipcRenderer.invoke(IPC.BOOKMARK_SET_FOLDER, id, folder),
+    onChanged: (cb: () => void): (() => void) => {
+      const listener = () => cb();
+      ipcRenderer.on(IPC.BOOKMARKS_CHANGED, listener);
+      return () => ipcRenderer.removeListener(IPC.BOOKMARKS_CHANGED, listener);
+    },
+  },
+  browserImport: {
+    detect: (): Promise<ImportSource[]> => ipcRenderer.invoke(IPC.IMPORT_DETECT),
+    run: (sourceId: string, options: { bookmarks: boolean; history: boolean }): Promise<ImportResult> =>
+      ipcRenderer.invoke(IPC.IMPORT_RUN, sourceId, options),
   },
   downloads: {
     list: (): Promise<DownloadEntry[]> => ipcRenderer.invoke(IPC.DOWNLOAD_LIST),
@@ -83,8 +120,22 @@ const dashApi = {
       return () => ipcRenderer.removeListener(IPC.SETTINGS_STATE_CHANGED, listener);
     },
   },
+  vpn: {
+    getState: (): Promise<VpnState> => ipcRenderer.invoke(IPC.VPN_GET_STATE),
+    setConfig: (config: VpnConfig, password?: string): Promise<VpnState> => ipcRenderer.invoke(IPC.VPN_SET_CONFIG, config, password),
+    connect: (): Promise<VpnState> => ipcRenderer.invoke(IPC.VPN_CONNECT),
+    disconnect: (): Promise<VpnState> => ipcRenderer.invoke(IPC.VPN_DISCONNECT),
+    test: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke(IPC.VPN_TEST),
+    checkIp: (): Promise<{ viaVpn?: string; direct?: string; error?: string }> => ipcRenderer.invoke(IPC.VPN_CHECK_IP),
+    onChanged: (cb: (state: VpnState) => void): (() => void) => {
+      const listener = (_e: Electron.IpcRendererEvent, state: VpnState) => cb(state);
+      ipcRenderer.on(IPC.VPN_STATE_CHANGED, listener);
+      return () => ipcRenderer.removeListener(IPC.VPN_STATE_CHANGED, listener);
+    },
+  },
   blockStats: {
     get: (): Promise<BlockStats> => ipcRenderer.invoke(IPC.BLOCK_STATS_GET),
+    reset: (): Promise<void> => ipcRenderer.invoke(IPC.BLOCK_STATS_RESET),
   },
   privacy: {
     clearBrowsingData: (options: {
@@ -146,6 +197,9 @@ const dashApi = {
   page: {
     print: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PAGE_PRINT, id),
     save: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PAGE_SAVE, id),
+    savePdf: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PAGE_SAVE_PDF, id),
+    toggleReader: (id: string): Promise<'opened' | 'closed' | 'unreadable' | 'unsupported'> =>
+      ipcRenderer.invoke(IPC.PAGE_READER, id),
     toggleDevTools: (id: string): Promise<void> => ipcRenderer.invoke(IPC.DEVTOOLS_TOGGLE, id),
   },
   suggestions: {
@@ -161,8 +215,16 @@ const dashApi = {
     endProcess: (pid: number): Promise<void> => ipcRenderer.invoke(IPC.TASK_MANAGER_END_PROCESS, pid),
   },
   overlay: {
-    push: (): Promise<void> => ipcRenderer.invoke(IPC.OVERLAY_PUSH),
+    /** Resolves to a JPEG data URL snapshot of the page (or null) to show while the native view is detached. */
+    push: (): Promise<string | null> => ipcRenderer.invoke(IPC.OVERLAY_PUSH),
     pop: (): Promise<void> => ipcRenderer.invoke(IPC.OVERLAY_POP),
+  },
+  shortcuts: {
+    onKey: (cb: (key: ForwardedKey) => void): (() => void) => {
+      const listener = (_e: Electron.IpcRendererEvent, key: ForwardedKey) => cb(key);
+      ipcRenderer.on(IPC.SHORTCUT_KEY, listener);
+      return () => ipcRenderer.removeListener(IPC.SHORTCUT_KEY, listener);
+    },
   },
   windowControls: {
     new: (): Promise<void> => ipcRenderer.invoke(IPC.WINDOW_NEW),

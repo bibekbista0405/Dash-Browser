@@ -6,6 +6,7 @@
  * existing import of "../../shared/ipc-channels" keeps working unchanged.
  */
 export * from '@dash/browser-core';
+import type { PermissionRecord } from '@dash/browser-core';
 
 export const IPC = {
   TAB_CREATE: 'tab:create',
@@ -44,6 +45,7 @@ export const IPC = {
   SETTINGS_STATE_CHANGED: 'settings:state-changed', // main -> renderer push
 
   BLOCK_STATS_GET: 'block-stats:get',
+  BLOCK_STATS_RESET: 'block-stats:reset',
 
   PRIVACY_CLEAR_BROWSING_DATA: 'privacy:clear-browsing-data',
 
@@ -79,24 +81,73 @@ export const IPC = {
 
   TAB_DUPLICATE: 'tab:duplicate',
   TAB_TOGGLE_PIN: 'tab:toggle-pin',
+  TAB_SET_GROUP: 'tab:set-group',
+  GROUP_UPDATE: 'group:update',
+  GROUP_CLOSE: 'group:close',
+  TABS_ORDER: 'tabs:order',
   TAB_TOGGLE_MUTE: 'tab:toggle-mute',
   TAB_REOPEN_CLOSED: 'tab:reopen-closed',
   TAB_REORDER: 'tab:reorder',
 
   PAGE_PRINT: 'page:print',
   PAGE_SAVE: 'page:save',
+  PAGE_SAVE_PDF: 'page:save-pdf',
+  VPN_GET_STATE: 'vpn:get-state',
+  VPN_SET_CONFIG: 'vpn:set-config',
+  VPN_CONNECT: 'vpn:connect',
+  VPN_DISCONNECT: 'vpn:disconnect',
+  VPN_TEST: 'vpn:test',
+  VPN_CHECK_IP: 'vpn:check-ip',
+  VPN_STATE_CHANGED: 'vpn:state-changed',
+  TABS_SLEEP_STATS: 'tabs:sleep-stats',
+  SITE_INFO: 'site:info',
+  SITE_SET_PROTECTION: 'site:set-protection',
+  SITE_CLEAR_DATA: 'site:clear-data',
   DEVTOOLS_TOGGLE: 'devtools:toggle',
+  PAGE_READER: 'page:reader',
 
   BOOKMARKS_EXPORT: 'bookmarks:export',
   BOOKMARKS_IMPORT: 'bookmarks:import',
+  BOOKMARK_SET_FOLDER: 'bookmark:set-folder',
+  BOOKMARKS_CHANGED: 'bookmarks:changed', // main -> all windows/internal pages
+  IMPORT_DETECT: 'import:detect',
+  IMPORT_RUN: 'import:run',
 
   SUGGESTIONS_QUERY: 'suggestions:query',
 
   WINDOW_NEW: 'window:new',
   OVERLAY_PUSH: 'overlay:push',
   OVERLAY_POP: 'overlay:pop',
+  SHORTCUT_KEY: 'shortcut:key', // main -> renderer: key combo pressed while a web page had focus
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',
 } as const;
 
+
+/** A browser profile on this computer that DASH can import from. */
+/** What the lock-icon panel shows about the page in a tab. Everything here is read live, nothing is estimated. */
+export interface SiteInfo {
+  /** Host without "www.", or '' for pages that are not on the web. */
+  host: string;
+  scheme: 'https' | 'http' | 'internal' | 'file' | 'other';
+  isPrivate: boolean;
+  /** Cookies this page can currently send (its own and its parent domains'). */
+  cookieCount: number;
+  /** Ad/tracker blocking is switched off for this site. */
+  blockingOff: boolean;
+  /** Camera/mic/location/notification decisions saved for this origin. */
+  permissions: PermissionRecord[];
+}
+
+export interface ImportSource {
+  id: string;
+  name: string;
+  bookmarkCount: number;
+  historyCount: number;
+}
+
+export interface ImportResult {
+  bookmarks: number;
+  history: number;
+}

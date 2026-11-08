@@ -8,6 +8,7 @@ import {
   type DownloadEntry,
   type DownloadState,
   type DashSettings,
+  type BlockedHostStat,
   type PasswordEntry,
   type PermissionRecord,
   type PermissionName,
@@ -20,6 +21,14 @@ import {
  * Everything lives on disk under the user's app-data directory.
  * Nothing here ever touches the network.
  */
+/** Set when a damaged data file was moved aside at start-up (the new path), so the UI can say so once. */
+let databaseRecoveryNote: string | null = null;
+export function takeDatabaseRecoveryNote(): string | null {
+  const n = databaseRecoveryNote;
+  databaseRecoveryNote = null;
+  return n;
+}
+
 class DashDatabase {
   private db: Database.Database;
 
@@ -29,10 +38,48 @@ class DashDatabase {
       fs.mkdirSync(userDataPath, { recursive: true });
     }
     const dbPath = path.join(userDataPath, 'dash.sqlite');
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = ON');
-    this.migrate();
+    try {
+      this.db = this.open(dbPath);
+    } catch (err) {
+      // A damaged data file must not leave DASH unable to start: keep it for inspection and start fresh.
+      const message = err instanceof Error ? err.message : String(err);
+      if (!/not a database|malformed|corrupt|disk image|encrypted/i.test(message)) throw err;
+      const kept = `${dbPath}.damaged-${Date.now()}`;
+      for (const suffix of ['', '-wal', '-shm']) {
+        try {
+          fs.renameSync(dbPath + suffix, kept + suffix);
+        } catch {
+          /* that part did not exist */
+        }
+      }
+      databaseRecoveryNote = kept;
+      this.db = this.open(dbPath);
+    }
+  }
+
+  private open(dbPath: string): Database.Database {
+    const db = new Database(dbPath);
+    try {
+      db.pragma('journal_mode = WAL');
+      db.pragma('foreign_keys = ON');
+      this.db = db;
+      this.migrate();
+      db.prepare('SELECT count(*) FROM sqlite_master').get(); // forces a read, so a damaged file fails here
+      return db;
+    } catch (err) {
+      db.close();
+      throw err;
+    }
+  }
+
+  /** Flushes the write-ahead log and closes the file. Safe to call more than once. */
+  close(): void {
+    try {
+      this.db.pragma('wal_checkpoint(TRUNCATE)');
+      this.db.close();
+    } catch {
+      /* already closed */
+    }
   }
 
   private migrate(): void {
@@ -56,6 +103,13 @@ class DashDatabase {
         created_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_bookmarks_url ON bookmarks(url);
+      CREATE TABLE IF NOT EXISTS block_hosts (
+        host TEXT NOT NULL,
+        category TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        last_at INTEGER NOT NULL,
+        PRIMARY KEY (host, category)
+      );
 
       CREATE TABLE IF NOT EXISTS downloads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,6 +175,10 @@ class DashDatabase {
     // `CREATE TABLE IF NOT EXISTS` never alters an existing table, so a
     // real ALTER TABLE is needed for anyone upgrading from before
     // multi-window session restore existed.
+    // Earlier builds recorded DASH's own internal pages (settings/history/...) in history under
+    // their real file/localhost URL. Remove those rows.
+    this.db.exec(`DELETE FROM history WHERE url LIKE '%/internal.html?page=%'`);
+
     const sessionTabsColumns = this.db.prepare(`PRAGMA table_info(session_tabs)`).all() as { name: string }[];
     if (!sessionTabsColumns.some((c) => c.name === 'window_index')) {
       this.db.exec(`ALTER TABLE session_tabs ADD COLUMN window_index INTEGER NOT NULL DEFAULT 0`);
@@ -144,6 +202,15 @@ class DashDatabase {
     this.db
       .prepare(`INSERT INTO history (url, title, favicon_url, visited_at) VALUES (?, ?, ?, ?)`)
       .run(url, title, faviconUrl, Date.now());
+  }
+
+  /** Favicons usually arrive after the page finished loading; attach one to that visit's history row. */
+  setLatestHistoryFavicon(url: string, faviconUrl: string): void {
+    this.db
+      .prepare(
+        `UPDATE history SET favicon_url = ? WHERE id = (SELECT MAX(id) FROM history WHERE url = ?) AND favicon_url IS NULL`
+      )
+      .run(faviconUrl, url);
   }
 
   queryHistory(searchTerm: string, limit = 200): HistoryEntry[] {
@@ -173,6 +240,12 @@ class DashDatabase {
 
   // ---- Bookmarks ----
   addBookmark(url: string, title: string, folder: string | null, faviconUrl: string | null = null): BookmarkEntry {
+    const existing = this.db
+      .prepare(
+        `SELECT id, url, title, favicon_url as faviconUrl, folder, created_at as createdAt FROM bookmarks WHERE url = ? LIMIT 1`
+      )
+      .get(url) as BookmarkEntry | undefined;
+    if (existing) return existing;
     const info = this.db
       .prepare(`INSERT INTO bookmarks (url, title, favicon_url, folder, created_at) VALUES (?, ?, ?, ?, ?)`)
       .run(url, title, faviconUrl, folder, Date.now());
@@ -184,6 +257,42 @@ class DashDatabase {
       folder,
       createdAt: Date.now(),
     };
+  }
+
+  setBookmarkFolder(id: number, folder: string | null): void {
+    this.db.prepare(`UPDATE bookmarks SET folder = ? WHERE id = ?`).run(folder, id);
+  }
+
+  /** Inserts bookmarks whose URL isn't already saved. Returns how many were added. */
+  importBookmarks(items: { url: string; title: string; folder: string | null; addedAt: number }[]): number {
+    const exists = this.db.prepare(`SELECT 1 FROM bookmarks WHERE url = ? LIMIT 1`);
+    const insert = this.db.prepare(
+      `INSERT INTO bookmarks (url, title, favicon_url, folder, created_at) VALUES (?, ?, NULL, ?, ?)`
+    );
+    let added = 0;
+    this.db.transaction(() => {
+      for (const b of items) {
+        if (exists.get(b.url)) continue;
+        insert.run(b.url, b.title, b.folder, b.addedAt);
+        added += 1;
+      }
+    })();
+    return added;
+  }
+
+  /** Inserts history rows that aren't already present (same URL and timestamp). */
+  importHistory(items: { url: string; title: string; visitedAt: number }[]): number {
+    const exists = this.db.prepare(`SELECT 1 FROM history WHERE url = ? AND visited_at = ? LIMIT 1`);
+    const insert = this.db.prepare(`INSERT INTO history (url, title, favicon_url, visited_at) VALUES (?, ?, NULL, ?)`);
+    let added = 0;
+    this.db.transaction(() => {
+      for (const h of items) {
+        if (exists.get(h.url, h.visitedAt)) continue;
+        insert.run(h.url, h.title, h.visitedAt);
+        added += 1;
+      }
+    })();
+    return added;
   }
 
   removeBookmark(id: number): void {
@@ -255,6 +364,21 @@ class DashDatabase {
       trackerBlockingEnabled: stored.trackerBlockingEnabled
         ? stored.trackerBlockingEnabled === 'true'
         : DEFAULT_SETTINGS.trackerBlockingEnabled,
+      sendPrivacySignals: stored.sendPrivacySignals ? stored.sendPrivacySignals === 'true' : DEFAULT_SETTINGS.sendPrivacySignals,
+      blockThirdPartyCookies: stored.blockThirdPartyCookies ? stored.blockThirdPartyCookies === 'true' : DEFAULT_SETTINGS.blockThirdPartyCookies,
+      stripTrackingParams: stored.stripTrackingParams ? stored.stripTrackingParams === 'true' : DEFAULT_SETTINGS.stripTrackingParams,
+      clearHistoryOnExit: stored.clearHistoryOnExit ? stored.clearHistoryOnExit === 'true' : DEFAULT_SETTINGS.clearHistoryOnExit,
+      clearSiteDataOnExit: stored.clearSiteDataOnExit ? stored.clearSiteDataOnExit === 'true' : DEFAULT_SETTINGS.clearSiteDataOnExit,
+      fingerprintProtection: stored.fingerprintProtection ? stored.fingerprintProtection === 'true' : DEFAULT_SETTINGS.fingerprintProtection,
+      neverSleepHosts: stored.neverSleepHosts ?? DEFAULT_SETTINGS.neverSleepHosts,
+      blockingOffHosts: stored.blockingOffHosts ?? DEFAULT_SETTINGS.blockingOffHosts,
+      keepSiteDataHosts: stored.keepSiteDataHosts ?? DEFAULT_SETTINGS.keepSiteDataHosts,
+      dohMode: (stored.dohMode as DashSettings['dohMode']) ?? DEFAULT_SETTINGS.dohMode,
+      dohProvider: (stored.dohProvider as DashSettings['dohProvider']) ?? DEFAULT_SETTINGS.dohProvider,
+      newTabCustomCss: stored.newTabCustomCss ?? DEFAULT_SETTINGS.newTabCustomCss,
+      newTabCustomCssEnabled: stored.newTabCustomCssEnabled ? stored.newTabCustomCssEnabled === 'true' : DEFAULT_SETTINGS.newTabCustomCssEnabled,
+      appCustomCss: stored.appCustomCss ?? DEFAULT_SETTINGS.appCustomCss,
+      appCustomCssEnabled: stored.appCustomCssEnabled ? stored.appCustomCssEnabled === 'true' : DEFAULT_SETTINGS.appCustomCssEnabled,
       showBookmarksBar: stored.showBookmarksBar ? stored.showBookmarksBar === 'true' : DEFAULT_SETTINGS.showBookmarksBar,
       httpsOnlyMode: stored.httpsOnlyMode ? stored.httpsOnlyMode === 'true' : DEFAULT_SETTINGS.httpsOnlyMode,
     };
@@ -301,6 +425,40 @@ class DashDatabase {
   }
 
   // ---- Blocking stats ----
+  addBlockedHosts(rows: { host: string; category: 'ad' | 'tracker'; count: number }[]): void {
+    const stmt = this.db.prepare(
+      `INSERT INTO block_hosts (host, category, count, last_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(host, category) DO UPDATE SET count = count + excluded.count, last_at = excluded.last_at`
+    );
+    const now = Date.now();
+    this.db.transaction(() => {
+      for (const r of rows) stmt.run(r.host, r.category, r.count, now);
+    })();
+  }
+
+  getTopBlockedHosts(limit: number): BlockedHostStat[] {
+    return this.db
+      .prepare(
+        `SELECT host, category, count, last_at as lastAt FROM block_hosts ORDER BY count DESC, last_at DESC LIMIT ?`
+      )
+      .all(limit) as BlockedHostStat[];
+  }
+
+  getBlockedByCategory(): { ad: number; tracker: number } {
+    const rows = this.db.prepare(`SELECT category, SUM(count) as total FROM block_hosts GROUP BY category`).all() as {
+      category: string;
+      total: number;
+    }[];
+    const out = { ad: 0, tracker: 0 };
+    for (const r of rows) if (r.category === 'ad' || r.category === 'tracker') out[r.category] = r.total;
+    return out;
+  }
+
+  clearBlockStats(): void {
+    this.db.exec(`DELETE FROM block_hosts`);
+    this.setBlockedCountLifetime(0);
+  }
+
   getBlockedCountLifetime(): number {
     const row = this.db.prepare(`SELECT value FROM settings WHERE key = 'blockedCountLifetime'`).get() as
       | { value: string }
@@ -503,9 +661,6 @@ class DashDatabase {
     this.db.prepare(`DELETE FROM extensions WHERE folder_path = ?`).run(folderPath);
   }
 
-  close(): void {
-    this.db.close();
-  }
 }
 
 let instance: DashDatabase | null = null;

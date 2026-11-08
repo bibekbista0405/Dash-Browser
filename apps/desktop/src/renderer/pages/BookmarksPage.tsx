@@ -1,13 +1,22 @@
+import { EmptyState } from '../components/EmptyState';
 import { useEffect, useMemo, useState } from 'react';
 import { useBookmarksStore } from '../store/bookmarks-store';
 
 export function BookmarksPage({ tabId }: { tabId: string }) {
-  const { bookmarks, load, remove } = useBookmarksStore();
+  const { bookmarks, load, remove, setFolder, subscribe } = useBookmarksStore();
+  const [movingId, setMovingId] = useState<number | null>(null);
+  const [newFolder, setNewFolder] = useState('');
   const [query, setQuery] = useState('');
 
   useEffect(() => {
     load();
-  }, [load]);
+    return subscribe();
+  }, [load, subscribe]);
+
+  const folderNames = useMemo(
+    () => Array.from(new Set(bookmarks.map((x) => x.folder).filter((f): f is string => !!f))).sort(),
+    [bookmarks]
+  );
 
   const navigate = (url: string) => {
     if (tabId) window.dash.tabs.navigate(tabId, url);
@@ -46,9 +55,7 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
       )}
 
       {bookmarks.length === 0 && (
-        <div className="text-[13px] text-text-tertiary">
-          No bookmarks yet. Click the star in the address bar to save a page.
-        </div>
+        <EmptyState icon="★" title="No bookmarks yet" hint="Click the star in the address bar, or press Ctrl+D, to save a page." />
       )}
 
       {bookmarks.length > 0 && filtered.length === 0 && (
@@ -81,6 +88,53 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
                   <div className="text-[13px] text-text-primary truncate">{b.title || b.url}</div>
                   <div className="text-[11px] text-text-tertiary truncate">{b.url}</div>
                 </div>
+                {movingId === b.id ? (
+                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <select
+                      autoFocus
+                      defaultValue=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '__new__') return;
+                        void setFolder(b.id, v === '' ? null : v);
+                        setMovingId(null);
+                      }}
+                      className="h-7 rounded-md bg-surface border border-border/60 text-[12px] text-text-primary px-1"
+                      aria-label="Move to folder"
+                    >
+                      <option value="" disabled>Move to…</option>
+                      <option value="">No folder (bookmarks bar)</option>
+                      {folderNames.map((f) => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                      <option value="__new__">New folder…</option>
+                    </select>
+                    <input
+                      value={newFolder}
+                      onChange={(e) => setNewFolder(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newFolder.trim()) {
+                          void setFolder(b.id, newFolder.trim());
+                          setNewFolder('');
+                          setMovingId(null);
+                        }
+                        if (e.key === 'Escape') setMovingId(null);
+                      }}
+                      placeholder="New folder name ↵"
+                      className="h-7 w-36 rounded-md bg-surface border border-border/60 text-[12px] px-2 text-text-primary placeholder:text-text-tertiary"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMovingId(b.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 h-6 px-2 rounded-md text-[11px] text-text-tertiary hover:bg-surface hover:text-text-primary shrink-0 transition-opacity"
+                  >
+                    Move
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

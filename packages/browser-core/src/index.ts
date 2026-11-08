@@ -3,4 +3,8 @@ export * from './settings';
 export * from './search';
 export * from './navigation';
 export * from './blocking';
+export * from './site';
+export * from './tracking-params';
+export * from './host-list';
+export * from './vpn';
 export * from './repositories';

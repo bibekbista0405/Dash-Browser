@@ -7,11 +7,13 @@ import { TabSearch } from './components/TabSearch';
 import { TaskManager } from './components/TaskManager';
 import { PasswordSavePrompt } from './components/PasswordSavePrompt';
 import { PermissionPrompt } from './components/PermissionPrompt';
+import { useOverlayStore } from './store/overlay-store';
 import { useTabsStore, activeTabOf } from './store/tabs-store';
 import { useBookmarksStore } from './store/bookmarks-store';
 import { useDownloadsStore } from './store/downloads-store';
 import { useSettingsStore } from './store/settings-store';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useAppCustomCss } from './hooks/useAppCustomCss';
 import { useTheme } from './hooks/useTheme';
 
 const INTERNAL_PAGE_URLS = {
@@ -40,6 +42,7 @@ export default function App() {
   const addressInputRef = useRef<HTMLInputElement>(null);
 
   useTheme(settingsStore.settings.theme);
+  useAppCustomCss(settingsStore.settings);
 
   useEffect(() => {
     tabsStore.initialize();
@@ -48,7 +51,9 @@ export default function App() {
     settingsStore.load();
     const unsubscribeDownloads = downloadsStore.subscribe();
     const unsubscribeSettings = settingsStore.subscribe();
+    const unsubscribeBookmarks = bookmarksStore.subscribe();
     return () => {
+      unsubscribeBookmarks();
       unsubscribeDownloads();
       unsubscribeSettings();
     };
@@ -91,11 +96,12 @@ export default function App() {
   });
 
   const activeTab = activeTabOf(tabsStore);
+  const overlaySnapshot = useOverlayStore((s) => s.snapshot);
 
   return (
     <div
       className={`relative h-screen w-screen flex flex-col text-text-primary overflow-hidden
-        ${activeTab?.isPrivate ? 'bg-[#1a1025]' : 'bg-surface'}`}
+        ${activeTab?.isPrivate ? 'bg-[#efe8fa] dark:bg-[#1a1025]' : 'bg-surface'}`}
     >
       <TabStrip />
       <AddressBar
@@ -107,6 +113,15 @@ export default function App() {
         hasActiveDownload={downloadsStore.hasActive}
       />
       {settingsStore.settings.showBookmarksBar && <BookmarksBar />}
+      {overlaySnapshot && (
+        <img
+          src={overlaySnapshot}
+          alt=""
+          draggable={false}
+          className="absolute left-0 right-0 bottom-0 w-full pointer-events-none select-none"
+          style={{ top: settingsStore.settings.showBookmarksBar ? 120 : 88, height: `calc(100% - ${settingsStore.settings.showBookmarksBar ? 120 : 88}px)` }}
+        />
+      )}
       {/* Remaining space below is intentionally empty — the active
           WebContentsView (including internal pages) is layered here by
           the main process. */}

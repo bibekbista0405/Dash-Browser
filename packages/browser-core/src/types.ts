@@ -4,7 +4,19 @@
  * Android/iOS later). Platform layers translate their own native state into
  * this shape.
  */
+export const TAB_GROUP_COLORS = ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'] as const;
+export type TabGroupColor = (typeof TAB_GROUP_COLORS)[number];
+
+export interface TabGroup {
+  id: string;
+  name: string;
+  color: TabGroupColor;
+  collapsed: boolean;
+}
+
 export interface TabState {
+  /** The group this tab belongs to, or null. Groups live for the session only. */
+  group: TabGroup | null;
   id: string;
   title: string;
   url: string;
@@ -54,8 +66,19 @@ export interface DownloadEntry {
   canResume: boolean;
 }
 
+export interface BlockedHostStat {
+  host: string;
+  category: 'ad' | 'tracker';
+  count: number;
+  lastAt: number;
+}
+
 export interface BlockStats {
   lifetimeTotal: number;
+  /** Per-category totals recorded since the per-host report began (normal tabs only). */
+  byCategory: { ad: number; tracker: number };
+  /** Most-blocked hosts, highest count first. Private-tab blocks are never recorded here. */
+  topHosts: BlockedHostStat[];
 }
 
 export interface PasswordEntry {

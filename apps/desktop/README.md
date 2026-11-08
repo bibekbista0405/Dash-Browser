@@ -716,3 +716,229 @@ somewhere to check (see `updater.ts`'s comment block).
 - **Password autofill:** on pages in normal (non-private) tabs, if a password was saved for the exact origin, DASH fills the visible username and password fields of the top-level frame. Never in iframes, private tabs or internal pages. Uses the most recently saved login when several exist.
 - Limits: no account picker for multiple logins, no fill-on-click, doesn't update a saved password when it changes, and the page's own scripts can read filled values (same as other browsers). Heuristic field detection; unusual login forms may not fill.
 - Audit note: database layer (history, shortcuts, bookmarks, settings, suggestions) was tested headlessly with real SQLite. Window/tab code needs a real Electron run and has not been exercised.
+
+## Milestone 17
+
+- **Shortcuts fixed (root cause):** the shortcut hook captured the tab store once at startup, so anything needing the active tab (Ctrl+W/R/P/S, zoom, Ctrl+1–9, Alt+arrows…) silently did nothing. It now reads fresh state per key press. Also, keys pressed while a web page had focus never reached the toolbar; the main process now intercepts exactly the browser shortcuts (`shortcut-filter.ts`) and forwards them. Added F5.
+- **Three-dot menu / dropdowns:** the page is no longer blank while a menu is open. A snapshot of the page is captured and painted behind the menu while the native view is detached.
+- **PDF viewer:** `plugins: true` on tab views enables Chromium's built-in PDF viewer. Images, video, audio, text and SVG open natively.
+- **Ad blocking:** added URL-path rules for ad endpoints on hosts that can't be blocked wholesale, plus a YouTube-specific script (strips ad data from player responses, hides ad containers, auto-skips ads that still play). As of M19 it is delivered as a session preload that runs before page scripts and asks the main process whether ad blocking is on (M17's DevTools-protocol injection never actually ran before page load). Limitation: YouTube changes its player often; this will need upkeep and may stop working after a YouTube update. Unit-tested against a stubbed page, not against live YouTube.
+- **Light mode:** New Tab page now follows the theme; Chromium's color scheme (and websites' prefers-color-scheme) follows the DASH theme setting; window background matches; private-tab tint fixed for light. Not visually verified.
+
+## Milestone 18
+
+- **Import from other browsers** (Settings → Import from another browser): detects Chrome, Edge, Brave, Chromium and Firefox profiles on this computer and imports bookmarks (with folders) and up to 10,000 recent history entries. Source databases are copied to a temp file first (the other browser locks them). Duplicates are skipped, so importing twice adds nothing. Only http/https URLs are imported. **Passwords are not imported** (they're encrypted with the other browser's keys).
+- **Bookmark folders:** Bookmarks page has a per-row "Move" control (existing folder or a new one). The bookmarks bar shows each folder as a dropdown button; nested folders appear as "Parent / Child".
+- **Bookmarks bar overflow:** entries that don't fit collapse behind a "»" menu.
+- **Bug fix:** bookmark changes made anywhere (Ctrl+D, the Bookmarks page, import) now update every window and internal page immediately; before, the bar only refreshed on restart.
+- **Verification:** tested in the real Electron app (virtual display) with fake Chrome and Firefox profiles, covering import, dedupe, the bar, overflow menu and folder menu; plus real-keystroke shortcuts, three-dot menu, PDF viewer, light-mode New Tab, New Tab shortcut remove/add/restore, and target=_blank links. Not verifiable there: password autofill (no OS keyring in the test machine), YouTube ad blocking (needs live YouTube), context menus (native popups), and the Windows installer.
+
+## Milestone 19
+
+Found by running the real app (Electron under a virtual display) and fixed:
+- **No window buttons:** the frameless window had no minimize/maximize/close. Now uses native title-bar overlay buttons (Windows/Linux) / traffic lights (macOS); tab strip leaves room for them and the overlay follows the theme.
+- **Internal pages were saved into history** (`internal.html?page=…`). No longer recorded; existing such rows are deleted on startup.
+- **Tabs were clipped** when many were open. Tabs now shrink like Chrome's.
+- **YouTube ad script never ran** on directly-opened pages (registered too late) and aborted at document-start (no `<head>` yet). Rewritten as a session preload; verified against a local stand-in for YouTube: ad data stripped, ad boxes hidden, skip clicked, ad endpoints blocked, all inert when Block ads is off.
+
+New privacy settings (Settings → Privacy):
+- **Do Not Track + Global Privacy Control headers** (on by default). Header only; `navigator.globalPrivacyControl` is not set.
+- **Block third-party cookies** (off by default; can break "Sign in with…" flows). Strips Cookie on outgoing and Set-Cookie on incoming cross-site sub-resource requests. "Third party" uses an approximate registrable-domain check, not the full Public Suffix List.
+- **Secure DNS (DNS-over-HTTPS):** off / automatic / always, with Cloudflare, Quad9, Google or Mullvad. Off by default so DASH never contacts a DNS provider on its own. Applied through Chromium's host resolver; the setting is wired and verified to save, but actual encrypted resolution could not be tested in the sandbox (no external network).
+- All request-header features share one `HeaderPolicy` handler per session (Electron allows one listener); the login detector now plugs into it.
+
+## Milestone 19.1 (startup hardening)
+
+- A startup failure used to leave DASH running with no window. It now shows an error dialog with the details, and writes `dash-startup.log` in the app's data folder (also records when Chromium helper processes such as the network service crash).
+- DNS-over-HTTPS no longer touches Chromium's resolver unless it is turned on, and can never abort startup.
+- Reported by a Windows user: "Network service crashed" plus a blank window. Cause not reproduced (Linux test machine); this build adds the diagnostics needed to pin it down.
+
+## Milestone 20 — Full audit & fixes
+
+Audited every feature against the real app (Electron under Xvfb, driven over CDP + xdotool).
+
+**Fixed**
+- Address bar: `localhost:3000`, `127.0.0.1:8080/x`, `[::1]:80` and `domain.com:8443/path` now load directly (http for local/IP, https for domains) instead of becoming web searches. Whitespace always means search; `javascript:`/`data:` never navigate. 14 unit cases in the audit.
+- Bookmarks: adding an already-bookmarked URL returns the existing entry instead of creating a duplicate.
+
+**Verified working (real app):** create/switch/close/reopen/duplicate/pin/mute/reorder tabs, back/forward, address resolution, suggestions, history (and private tabs leave none), bookmarks, settings persistence + invalid-value rejection, downloads incl. pause (byte count frozen) / resume / completion, zoom, find, task manager.
+
+**Not verifiable in the sandbox:** password autofill (no OS keyring), live youtube.com, native right-click menus, real DoH, Windows `.exe` build and the Windows blank-window report (send PowerShell output + `dash-startup.log`).
+
+## Milestone 21 — Privacy Report
+
+Settings → **Privacy Report → Blocked ads & trackers** shows total blocked, ads vs trackers, and the most-blocked hosts with bars, plus a "Reset report" button.
+
+- Counts are stored locally in a new `block_hosts` table (host, category, count). Nothing is sent anywhere.
+- Private tabs count toward the lifetime total but their hosts are **never** recorded.
+- Verified in the real app: normal tab records per host (2 ads + 1 tracker), private tab adds no hosts, ad blocking OFF stops ad counting, reset clears everything.
+- Limitation: per-host stats begin from this version; older installs show the lifetime total but an empty host list until new blocks occur. There is no per-site (page) breakdown yet, only per blocked host.
+
+## Milestone 22 — Reading mode
+
+Menu (⋮) → **Reading mode**, or **Ctrl/Cmd+Shift+R**. Esc or Close exits; A−/A+ change text size; shows word count and read time.
+
+- Runs entirely in the page: a text-density heuristic picks the article, then it is rebuilt from a whitelist of tags/attributes (scripts, nav, sidebars, forms, buttons, bad image URLs and event handlers are dropped) inside a closed shadow root. No network requests, nothing stored.
+- Follows DASH's dark/light theme. Not offered on internal `dash://` pages.
+- Verified in the real app: junk stripped, link and bold kept, title not duplicated, dark and light rendering, real Ctrl+Shift+R opens and Esc closes, short/non-article pages report "unreadable" instead of breaking, internal pages unsupported.
+- Limitations: heuristic extraction (no Mozilla Readability), so unusual layouts can pick the wrong block; the toolbar gives no visible message when a page is unreadable yet; text size isn't remembered; ordinary Ctrl+R reload is unchanged.
+
+## Milestone 23 — Tab groups
+
+Right-click a tab → **Add to new group** / **Add to “<group>”** / **Remove from group**. Click a group's coloured chip to collapse/expand; right-click the chip to rename (type + Enter), pick one of 8 colours, **Ungroup**, or **Close group**.
+
+- A group's tabs stay side by side; collapsed groups show one chip with a tab count (the active tab stays visible). Pinning a tab removes it from its group; pinned tabs can't be grouped. Empty groups vanish.
+- Main process owns group state; IPC is validated (unknown group ids, invalid colours and non-boolean collapse are rejected).
+- Fixed along the way: tabs closed by the main process (Close group) no longer linger in the tab strip.
+- Verified in the real app: API ops (create/join/rename/colour/collapse/close, invalid input), UI tab count equals main's tab count after Close group, real right-click → Add to new group, real right-click on chip + typing a name.
+- Limitations: groups are **session-only** (not restored after restart, tab URLs still are); dragging a tab can separate it from its group visually; no drag-into-group yet.
+
+## Milestone 23.1 — Windows install fix
+
+**Reported:** `npm install` aborted in the postinstall step (`npx prebuild-install` → "JavaScript heap out of memory"), after npm also logged `EPERM ... rmdir` cleanup warnings.
+
+**Fixes**
+- The native-binary step no longer uses `npx` + a shell. It runs prebuild-install's own entry with Node directly (4 GB heap allowed, 3 retries), so it can't trigger a stray package download.
+- The postinstall step is **non-fatal**: if the binary can't be fetched, `npm install` still succeeds and prints how to retry: `npm run native:electron`.
+- `dist`, `dist:win`, `dist:portable` now run through `scripts/dist.mjs`. The old one-liners used `VAR=1 cmd` and `;`, which don't work in Windows `cmd.exe`. The driver also restores the dev binary afterwards even if packaging fails.
+
+**Verified here (Linux):** postinstall success path; forced failure still exits 0 with instructions; `native:electron` exits 1 on failure; `dist:win` builds the app, fetches the Windows binary, produces `win-unpacked/DASH.exe` with a Windows (PE) `better_sqlite3.node`, then restores the Linux dev binary; app rebuilt and re-audited (25 checks + 10 tab-group checks pass).
+**Not verified:** the final `.exe`/installer step needs Windows (here it stops at "wine is required"), and your PC's memory/EPERM behaviour.
+
+**If install still fails on Windows**
+1. Move the project out of `Downloads` (e.g. `C:\dev\dash-monorepo`) — avoid OneDrive/synced folders and paths with spaces.
+2. Delete the half-installed `node_modules` folder (and `package-lock.json` only if it is corrupt), then `npm install`.
+3. Pause antivirus real-time scanning for that folder (it causes the `EPERM rmdir` errors).
+4. If the native step still reports a problem: `npm run native:electron`, then `npm run dev`.
+
+## Milestone 24 — Real logo everywhere, custom New Tab CSS, shortcuts redesign
+
+**Logo.** The real DASH mark (from `resources/icon.png`) is now used in: the New Tab Page (logo + wordmark + tagline), the tab strip, the internal-page sidebar, the Settings header, and as the tab icon for DASH's own pages. It is drawn as a CSS mask, so it follows the theme colour. (Window/taskbar/installer icons already came from the same artwork; the window now loads the 512px copy instead of the 5016px original.)
+
+**Custom New Tab CSS** (Settings → New Tab Page): enable toggle, editor (20,000-char cap), three starter templates (Aurora, Minimal, Paper), Apply/Reset, and a reference of the CSS variables/classes you can target. Open New Tab Pages refresh immediately. It's stored locally, injected only into the New Tab Page's own `<style>`, and can't run scripts (a `</style><script>` attempt is neutralised). Note: CSS that links to online files (`@import`, `url(http…)`) will fetch them.
+
+**Shortcuts.** Redesigned (card tiles, hover lift, dashed "Add shortcut" tile, responsive grid). Bugs fixed:
+- Favicons sat on `var(--fg)` — near-black in light mode — so transparent icons looked like dark boxes. They now sit on an opaque light plate in both themes.
+- Favicons of **http** sites were blocked by the chrome page's CSP, so tab icons never showed. Allowed `http:` for images.
+- Favicons usually arrive after page load, so history/shortcuts almost never got one on first visit. They are now attached to that visit's history row.
+- Custom CSS refresh used a stale cached settings object (lagged one change behind); it now reads the database.
+
+**Verified in the real app:** logo in all placements (dark + light); tiles with/without favicon in both themes; custom CSS disabled→enabled→edited→injection→disabled, size cap, persistence; real mouse clicks on template + Apply; all earlier audits (25 + 10 checks) still pass.
+**Limitations:** the editor has no syntax highlighting or live preview (Apply refreshes open New Tab tabs); only one tile per host; the logo mask is a 256px raster, so extremely large sizes (>256px) will look soft.
+
+## Milestone 25 — UI/UX stability tier + privacy quick wins
+
+**UI/UX stability (Tier 0)**
+- Opening Settings/History/Downloads/Bookmarks again focuses the existing tab instead of stacking duplicates.
+- Failed page loads show a real error page (reason + Retry), not a blank view; the address bar keeps the failed URL.
+- The address-bar lock icon reflects the real connection state (no false "secure" for http/internal pages).
+- Narrow-window layouts fixed (responsive sidebar, no horizontal scroll, tabs keep a readable minimum width).
+- Consistent empty states on History, Downloads and Bookmarks.
+
+**Privacy quick wins (Tier 1)**
+- **Tracker-free links** (default on): `stripTrackingParams()` in `@dash/browser-core` removes known tracking
+  parameters (`utm_*`, `fbclid`, `gclid`, `msclkid`, `mc_eid`, …) from top-level GET navigations via the existing
+  `RequestBlocker`. Deliberately conservative: generic names like `ref` or `source` are never touched. POSTs are never rewritten.
+- **Auto-clear on exit** (default off): optional wipe of history and/or cookies + site storage + cache on quit.
+- **GPC JS flag**: `navigator.globalPrivacyControl` is now exposed (matching the `Sec-GPC` header) when "Send Do Not Track and
+  Global Privacy Control signals" is on; takes effect on next page load.
+
+**Testing:** 9 unit cases for `stripTrackingParams`; real-app checks for strip on/off, GPC on/off, history + cookie wipe on quit.
+
+**Honest limitations**
+- Parameter stripping uses a fixed list; unknown trackers pass through. Sites that need a listed parameter for real
+  functionality are rare but possible — turn the setting off if one breaks.
+- Exit clearing runs when the app quits normally (window close / Quit). A crash or force-kill skips it.
+- Private windows never persist data anyway; this setting concerns the normal profile only.
+
+## Milestone 26 — Full theming: browser theme, home-page theme, Sweet Dream
+
+**What's new**
+- **Home page rebuilt around stable theme hooks.** The page is now `<div class="dash-home" data-theme="…">` with `.dash-atmosphere`,
+  `.dash-light-orbs/.dash-orb`, `.dash-bubbles/.dash-bubble`, `.dash-cursor-glow`, `.dash-particle-canvas`, `.dash-sparkles/.dash-sparkle`,
+  `.dash-content`, `.dash-branding/.dash-logo/.dash-title/.dash-tagline`, `.dash-search`, `.dash-shortcuts/.dash-shortcut/.dash-shortcut-icon/.dash-shortcut-label`,
+  `.dash-shortcut-add`, `.dash-restore`, `.dash-theme-switcher/.dash-theme-button`. CSS written for these names (like Sweet Dream) works as pasted.
+- **Theme name comes from your CSS.** DASH reads the first `data-theme="name"` selector; no such selector = your CSS just tweaks the built-in look.
+  The built-in look is written with `:where()` (zero specificity) so your CSS always wins.
+- **Page helpers** (our own script, no data access): `--mouse-x/--mouse-y` for the cursor glow, 16 random sparkles, a particle canvas
+  (drawn only if your CSS makes it visible, paused when the tab is hidden, off under reduced-motion).
+- **Classic / Custom switcher** at the bottom of the home page (appears once you have saved custom CSS); it flips the same setting as Settings.
+- **Browser Theme** (Settings): your CSS applies live to the toolbar, tabs, menus and internal pages. Colour variables `--color-*` under `.dark` / `.light`.
+- **Templates and import:** Blank template, Sweet Dream, Aurora, Minimal, Paper (home); Blank template, Sweet Dream, Ocean, Forest (browser); Import .css file, Copy.
+  Ready-made files are also in `/themes`. CSS limit raised to 60,000 characters.
+- Logo is tinted by `--logo-fill`, falling back to your `--accent`, so themed pages get a coloured logo automatically.
+
+**Testing (real app):** Sweet Dream applied (theme id `sweet`, 100px search radius, 16 sparkles, canvas on, 82px logo, switcher present); Classic switch restored the
+built-in look and persisted; browser theme set `--color-accent` and recoloured the chrome; regression audits 25/25 and 10/10.
+
+**Honest limitations**
+- Older home-page CSS written for the previous class names (`.tile`, `.brand`, `form.search`) no longer matches; the old built-in templates were rewritten.
+- The native window-button strip on Windows keeps its own colour; a browser theme doesn't recolour it.
+- The Classic/Custom switch doesn't update an already-open Settings page until it is reopened.
+- Sweet Dream's 5-column shortcut grid looks sparse until you have several frequently visited sites.
+
+## Milestone 27 — Fingerprint protection, Save as PDF, sleep controls, exit keep-list
+
+**What's new**
+- **Fingerprint protection** (Settings → Privacy, default on): per-launch-consistent tiny noise on canvas readback (`toDataURL`, `toBlob`, `getImageData`) and
+  audio samples; `hardwareConcurrency` reports 4 and `deviceMemory` 8. Applied through the session preload (same mechanism as the GPC flag).
+- **Save as PDF** (three-dot menu and page right-click menu): real `printToPDF` with backgrounds, saved where you choose.
+- **Never sleep these sites**: one site per line; matching tabs are skipped by the sleeping-tabs timer (subdomains included).
+- **Sleeping tab stats** in Settings: tabs asleep now, and an estimate of renderer memory released (measured when each tab went to sleep; skipped when another tab shares the process).
+- **Keep list for "Clear on exit"**: sites whose cookies and storage survive the wipe. Logic lives in `main/services/exit-cleanup.ts`; every step is time-limited.
+- Roadmap audit: **tab search (Ctrl+Shift+A) already existed**, so it is not new.
+
+**Testing**
+- Unit: 10 cases for the site-list parser/matcher, 9 for link stripping.
+- Real app: canvas hash differs from the unprotected one and is identical across pages in a session; `hardwareConcurrency` 4 vs real 2; toggling off restores the real value.
+- Real app, sleep timers temporarily shortened (then restored): background tab slept, a never-sleep site stayed awake, stats reported sleeping tabs.
+- Real app: Save as PDF opened the real save dialog and wrote a valid PDF containing the page text.
+- Standalone Electron test of the keep-list: with `127.0.0.1` kept, its cookie and localStorage survive while `localhost`'s are removed; with no keep list both are removed.
+- Regression audits 25/25 and 10/10.
+
+**Honest limitations**
+- Fingerprint protection covers canvas, audio and two hardware values only. **Not covered:** WebGL parameters, installed fonts, screen size, iframes (session preloads run in the top frame). Canvas apps that read pixels back may see ±1 colour noise; turn the setting off for them.
+- Memory-released is an estimate, not a measurement of the final result.
+- Keep-list cannot enumerate storage for sites that left no cookie and no history entry; those are not cleared.
+- **Quit flow not verified end to end:** in my Linux sandbox the app does not exit on window close even with no cleanup settings, so the quit-time wiring (`will-quit` hold, then quit) was verified in pieces (history wipe on `will-quit`, the clearing logic standalone) but not as one full real quit. Please test a normal close on Windows.
+
+## Milestone 28 — VPN and crash/error management
+
+### VPN (Settings → VPN, toolbar shield)
+- **Off by default.** Nothing is routed until you turn it on (or tick "Connect on startup").
+- It is a real tunnel for **browser traffic**: all tabs (normal and private) go through an HTTPS, HTTP or SOCKS5 proxy/VPN server you configure, via Chromium's proxy settings. DNS goes through the server too, and WebRTC is restricted so it cannot leak your address.
+- **Kill switch** (default on): if the server stops working, traffic is blocked, not sent directly. A clear error page explains it. Local and private-network addresses bypass the tunnel.
+- The password is encrypted with the OS keystore (Electron safeStorage). If the OS offers none, it is kept in memory only and is not saved.
+- Test connection and "Check my IP" buttons do real requests; no result is invented.
+- **Limits (honest):** DASH does not ship or run a VPN server — you bring your own (company VPN gateway, self-hosted, or a provider's proxy endpoint). It does not tunnel other apps' traffic (no WireGuard/OpenVPN), and Chromium cannot do SOCKS5 with a username/password, so those servers are refused with a message. The update check is skipped while the VPN is active.
+
+### Crash and error management
+- **A tab's page crashes / runs out of memory:** that tab shows "This page stopped working" with **Try again**; other tabs are untouched. Crash loops are capped.
+- **The browser window's own UI crashes:** it reloads itself; if it keeps happening, a dialog offers Restart or Quit.
+- **Unresponsive page:** a dialog offers Wait or Close page.
+- **DASH is killed, crashes, or power is lost:** the next start shows "DASH closed unexpectedly last time. Restore your N tab(s)?" on the New Tab page. A normal quit shows nothing.
+- **Graphics process keeps crashing (3 times):** DASH offers a restart and the next run uses software rendering.
+- **Damaged data file:** moved aside to `dash.sqlite.damaged-<time>`, DASH starts fresh and tells you where the old file is.
+- **Second launch:** brings the existing window to the front instead of opening a second copy fighting over the same data.
+- **Unexpected internal errors** are logged, never shown as a raw crash box; repeated ones offer a restart.
+- **Startup failure** shows a message with the log location. The log is `dash-startup.log` in the app data folder (local only, never sent anywhere; rolls over at 512 KB).
+
+### Testing done (Linux, real app under Xvfb)
+Tab crash page + Try again; SIGKILL then relaunch banner and Restore; clean quit then no banner; corrupt database quarantine; second instance exits; VPN connect-on-startup with a dead server fails closed with the VPN error page; earlier VPN tests against local HTTP/auth/SOCKS5 proxies; regression suites (25 audit, 10 groups, tier-1, fingerprint, unit tests).
+
+### Not verified
+Windows installer/uninstall behaviour, real window-close flow (the sandbox does not exit on window close), safeStorage on a real keyring, a real HTTPS VPN server and public IP lookup (sandbox has no internet), real GPU driver crashes.
+
+## Milestone 29 — Tier 2: per-site privacy panel
+
+Click the lock / "Not secure" badge in the address bar.
+
+- **Connection:** says honestly whether the page is HTTPS, plain HTTP, a DASH page or a local file.
+- **Ad and tracker blocking switch (per site):** turns blocking off for just that site (stored as `blockingOffHosts`, a plain list, local only). The page's own address decides, so third-party scripts on that site are let through only while you are on that site. Reload to apply.
+- **Cookies:** live count of cookies the page can send, and **Clear site data** (cookies, local storage, IndexedDB, service workers, cache for that origin).
+- **Permissions:** the camera/mic/location/notification choices saved for that origin, each with Reset. Private tabs save none and say so.
+- Works in private tabs (uses that tab's own session).
+
+Limits: the switch covers the request blocker, not the YouTube ad-skipping script or HTTPS-only/tracking-parameter stripping, which stay global. Cookie counts include cookies from the site's parent domains, because those are the ones sent.
+
+Tested in the real app: blocked 3 -> 0 with protection off -> 3 again after turning it back on; cookie count 2 -> cleared 2 -> 0; invalid host rejected; permission Reset removes the saved choice; panel opens over the page and closes with Esc.

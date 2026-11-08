@@ -2,7 +2,7 @@
   "name": "dash-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "DASH — a privacy-first browser platform. apps/desktop is the Electron implementation today; packages/browser-core holds platform-independent domain logic shared by every future platform (Android, iOS).",
+  "description": "DASH \u2014 a privacy-first browser platform. apps/desktop is the Electron implementation today; packages/browser-core holds platform-independent domain logic shared by every future platform (Android, iOS).",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -15,6 +15,7 @@
     "dist:win": "npm run dist:win --workspace=apps/desktop",
     "dist:portable": "npm run dist:portable --workspace=apps/desktop",
     "typecheck": "npm run typecheck --workspace=packages/browser-core && npm run typecheck --workspace=apps/desktop",
-    "lint": "npm run lint --workspace=apps/desktop"
+    "lint": "npm run lint --workspace=apps/desktop",
+    "native:electron": "npm run native:electron --workspace=apps/desktop"
   }
 }

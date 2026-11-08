@@ -1,0 +1,44 @@
+/* ============================================================
+   DASH — HOME PAGE THEME TEMPLATE
+   Paste into Settings → Appearance → Home page theme, then Apply.
+   Name your theme in the selectors below (here: "mytheme"). DASH reads
+   the data-theme name from your CSS, so any name works. Leave out all
+   data-theme selectors to just tweak the built-in look instead.
+   ============================================================ */
+
+/* 1. Colours. Anything you define here is available to the rules below. */
+.dash-home[data-theme="mytheme"] {
+  --bg: #0f1020;
+  --fg: #f3f0ff;
+  --accent: #b794ff;          /* also tints the logo; set --logo-fill for a custom colour/gradient */
+  /* --logo-fill: linear-gradient(135deg, #ff9ecb, #b794ff); */
+  background: radial-gradient(ellipse at 20% 0%, #3a2a7a 0%, transparent 55%), var(--bg);
+  color: var(--fg);
+}
+
+/* 2. Layers behind the page (all optional, empty until you style them):
+      .dash-atmosphere  .dash-light-orbs > .dash-orb (x3)  .dash-bubbles > .dash-bubble (x5)
+      .dash-cursor-glow (uses --mouse-x / --mouse-y)  .dash-particle-canvas (set opacity > 0 to show)
+      .dash-sparkles > .dash-sparkle (16, placed randomly) */
+
+/* 3. Content */
+.dash-home[data-theme="mytheme"] .dash-title   { letter-spacing: .2em; }
+.dash-home[data-theme="mytheme"] .dash-tagline { color: #9d92c9; }
+
+.dash-home[data-theme="mytheme"] .dash-search {
+  width: min(640px, 90%); height: 56px; padding: 0 24px; border-radius: 28px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18);
+}
+.dash-home[data-theme="mytheme"] .dash-search input { height: 100%; font-size: 16px; }
+
+.dash-home[data-theme="mytheme"] .dash-shortcuts {
+  display: grid; grid-template-columns: repeat(5, 112px); gap: 20px; margin-top: 40px;
+}
+.dash-home[data-theme="mytheme"] .dash-shortcut       { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 6px; border-radius: 20px; }
+.dash-home[data-theme="mytheme"] .dash-shortcut:hover { background: rgba(255,255,255,.08); }
+.dash-home[data-theme="mytheme"] .dash-shortcut-icon  { width: 56px; height: 56px; border-radius: 18px; background: #fff; }
+.dash-home[data-theme="mytheme"] .dash-shortcut-icon img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+.dash-home[data-theme="mytheme"] .dash-shortcut-label { font-size: 13px; color: var(--fg); }
+
+/* Other hooks: .dash-branding .dash-logo .dash-tagline .dash-shortcut-add .dash-shortcut-remove
+   .dash-add-form .dash-restore .dash-empty .dash-theme-switcher .dash-theme-button */

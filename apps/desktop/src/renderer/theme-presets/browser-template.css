@@ -1,0 +1,35 @@
+/* ============================================================
+   DASH — BROWSER THEME TEMPLATE
+   Paste into Settings → Appearance → Browser theme, then Apply.
+   Colours are "R G B" triplets (no commas, no #), so DASH can
+   mix opacity in. .dark applies in Dark mode, .light in Light.
+   Delete anything you don't want to change.
+   ============================================================ */
+
+.dark {
+  --color-surface: 11 13 16;           /* window + page background */
+  --color-surface-elevated: 21 24 29;  /* cards, menus, inputs */
+  --color-surface-hover: 31 35 42;     /* hover state */
+  --color-border: 38 43 51;
+  --color-accent: 91 140 255;          /* buttons, active tab, focus */
+  --color-text-primary: 242 243 245;
+  --color-text-secondary: 167 173 184;
+  --color-text-tertiary: 92 98 109;
+}
+
+.light {
+  --color-surface: 255 255 255;
+  --color-surface-elevated: 246 247 249;
+  --color-surface-hover: 236 238 241;
+  --color-border: 224 227 231;
+  --color-accent: 59 100 220;
+  --color-text-primary: 20 22 26;
+  --color-text-secondary: 90 96 107;
+  --color-text-tertiary: 150 156 166;
+}
+
+/* Optional extras — uncomment to try:
+html { font-size: 15px; }
+::selection { background: rgb(var(--color-accent) / .35); }
+*::-webkit-scrollbar-thumb { background: rgb(var(--color-accent) / .5); border-radius: 20px; }
+*/

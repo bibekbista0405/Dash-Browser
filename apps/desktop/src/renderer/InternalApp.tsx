@@ -3,6 +3,8 @@ import { HistoryPage } from './pages/HistoryPage';
 import { DownloadsPage } from './pages/DownloadsPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { Logo } from './components/Logo';
+import { useAppCustomCss } from './hooks/useAppCustomCss';
 import { useTheme } from './hooks/useTheme';
 import { useSettingsStore } from './store/settings-store';
 
@@ -42,6 +44,7 @@ export default function InternalApp() {
   const settingsStore = useSettingsStore();
 
   useTheme(settingsStore.settings.theme);
+  useAppCustomCss(settingsStore.settings);
 
   useEffect(() => {
     settingsStore.load();
@@ -53,25 +56,29 @@ export default function InternalApp() {
 
   return (
     <div className="h-screen w-screen flex bg-surface text-text-primary overflow-hidden">
-      <nav className="w-52 shrink-0 border-r border-border bg-surface-elevated flex flex-col py-4">
-        <div className="px-4 pb-4 text-[13px] font-semibold text-text-secondary tracking-wide">DASH</div>
+      <nav className="w-14 md:w-52 shrink-0 border-r border-border bg-surface-elevated flex flex-col py-4">
+        <div className="px-4 md:px-4 pb-4 flex items-center justify-center md:justify-start gap-2 text-[13px] font-semibold text-text-primary tracking-[0.18em]">
+          <Logo size={22} />
+          <span className="hidden md:inline">DASH</span>
+        </div>
         {(Object.keys(PAGE_TITLES) as PageId[]).map((id) => (
           <a
             key={id}
             href={`dash://${id}`}
-            className={`flex items-center gap-3 mx-2 px-3 py-2 rounded-lg text-[13px] transition-colors ${
+            title={PAGE_TITLES[id]}
+            className={`flex items-center justify-center md:justify-start gap-3 mx-2 px-3 py-2 rounded-lg text-[13px] transition-colors ${
               id === page
                 ? 'bg-accent/15 text-accent'
                 : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
             }`}
           >
             <span className="w-4 text-center">{PAGE_ICONS[id]}</span>
-            {PAGE_TITLES[id]}
+            <span className="hidden md:inline">{PAGE_TITLES[id]}</span>
           </a>
         ))}
       </nav>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
         {page === 'history' && <HistoryPage tabId={tabId} />}
         {page === 'downloads' && <DownloadsPage />}
         {page === 'bookmarks' && <BookmarksPage tabId={tabId} />}

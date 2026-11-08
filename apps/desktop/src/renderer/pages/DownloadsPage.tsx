@@ -1,3 +1,4 @@
+import { EmptyState } from '../components/EmptyState';
 import { useEffect, useMemo, useState } from 'react';
 import { useDownloadsStore } from '../store/downloads-store';
 import type { DownloadEntry } from '../../shared/ipc-channels';
@@ -104,7 +105,9 @@ export function DownloadsPage() {
         />
       )}
 
-      {downloads.length === 0 && <div className="text-[13px] text-text-tertiary">No downloads yet.</div>}
+      {downloads.length === 0 && (
+        <EmptyState icon="⬇" title="No downloads yet" hint="Files you download will appear here, with pause, resume and open-folder controls." />
+      )}
       {downloads.length > 0 && filtered.length === 0 && (
         <div className="text-[13px] text-text-tertiary">No downloads match "{query}".</div>
       )}

@@ -1,4 +1,4 @@
-import type { Session } from 'electron';
+import type { OnBeforeSendHeadersListenerDetails } from 'electron';
 
 export interface DetectedLogin {
   origin: string;
@@ -32,37 +32,40 @@ const MAX_JSON_DEPTH = 2; // shallow only, to avoid pathological/huge structures
  * occasional missed prompt.
  */
 export class LoginDetector {
-  constructor(session: Session, onDetected: (login: DetectedLogin) => void) {
-    session.webRequest.onBeforeSendHeaders({ urls: ['<all_urls>'] }, (details, callback) => {
-      callback({ requestHeaders: details.requestHeaders });
+  constructor(private onDetected: (login: DetectedLogin) => void) {}
 
-      if (details.method !== 'POST' || !details.uploadData) return;
-      const contentTypeHeader = Object.entries(details.requestHeaders ?? {}).find(
-        ([k]) => k.toLowerCase() === 'content-type'
-      );
-      const contentType = (contentTypeHeader?.[1] ?? '').toLowerCase();
+  /**
+   * Called by the session's single onBeforeSendHeaders handler (see
+   * HeaderPolicy) for every request — Electron keeps only ONE such listener
+   * per session, so this class no longer registers its own.
+   */
+  inspect(details: OnBeforeSendHeadersListenerDetails): void {
+    if (details.method !== 'POST' || !details.uploadData) return;
+    const contentTypeHeader = Object.entries(details.requestHeaders ?? {}).find(
+      ([k]) => k.toLowerCase() === 'content-type'
+    );
+    const contentType = (contentTypeHeader?.[1] ?? '').toLowerCase();
 
-      const bodyText = details.uploadData
-        .filter((chunk) => chunk.bytes)
-        .map((chunk) => chunk.bytes!.toString('utf-8'))
-        .join('');
-      if (!bodyText || bodyText.length > MAX_BODY_BYTES) return;
+    const bodyText = details.uploadData
+      .filter((chunk) => chunk.bytes)
+      .map((chunk) => chunk.bytes!.toString('utf-8'))
+      .join('');
+    if (!bodyText || bodyText.length > MAX_BODY_BYTES) return;
 
-      let pair: { username: string; password: string } | null = null;
-      if (contentType.includes('application/x-www-form-urlencoded')) {
-        pair = extractFromFormBody(bodyText);
-      } else if (contentType.includes('application/json')) {
-        pair = extractFromJsonBody(bodyText);
-      }
-      if (!pair) return;
+    let pair: { username: string; password: string } | null = null;
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      pair = extractFromFormBody(bodyText);
+    } else if (contentType.includes('application/json')) {
+      pair = extractFromJsonBody(bodyText);
+    }
+    if (!pair) return;
 
-      try {
-        const origin = new URL(details.url).origin;
-        onDetected({ origin, username: pair.username, password: pair.password, webContentsId: details.webContentsId });
-      } catch {
-        // Malformed URL — skip silently rather than throw inside a webRequest handler.
-      }
-    });
+    try {
+      const origin = new URL(details.url).origin;
+      this.onDetected({ origin, username: pair.username, password: pair.password, webContentsId: details.webContentsId });
+    } catch {
+      // Malformed URL — skip silently rather than throw inside a webRequest handler.
+    }
   }
 }
 

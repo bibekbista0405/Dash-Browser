@@ -32,6 +32,17 @@ export const useTabsStore = create<TabsStore>((set) => ({
       activeTabId: snapshot.find((t) => t.isActive)?.id ?? null,
     });
 
+    window.dash.tabs.onOrder((ids) => {
+      set((s) => {
+        const byId = new Map(s.tabs.map((t) => [t.id, t]));
+        const ordered = ids.map((id) => byId.get(id)).filter((t): t is TabState => !!t);
+        // The main process is authoritative: tabs it no longer lists were closed
+        // there (e.g. "Close group"), so drop them too.
+        const activeStillThere = ordered.some((t) => t.id === s.activeTabId);
+        return { tabs: ordered, activeTabId: activeStillThere ? s.activeTabId : (ordered.find((t) => t.isActive)?.id ?? null) };
+      });
+    });
+
     window.dash.tabs.onStateChanged((incoming) => {
       set((s) => {
         const exists = s.tabs.some((t) => t.id === incoming.id);
