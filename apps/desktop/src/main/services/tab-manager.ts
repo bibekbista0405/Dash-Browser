@@ -106,7 +106,9 @@ export class TabManager {
     private loadInternalPage: (view: WebContentsView, page: InternalPageId, tabId: string) => Promise<void>,
     private trustInternalPage: (wc: WebContentsView['webContents']) => void,
     private untrustInternalPage: (webContentsId: number) => void,
-    private findCredentials: (origin: string) => { username: string; password: string } | null = () => null
+    private findCredentials: (origin: string) => { username: string; password: string } | null = () => null,
+    private findAllCredentials: (origin: string) => { username: string; password: string }[] = () => [],
+    private generatePassword: () => string = () => ''
   ) {
     this.onStateChange = onStateChange;
     this.getSettings = getSettings;
@@ -278,7 +280,32 @@ export class TabManager {
     if (!tab?.view) return;
     tab.zoomFactor = next(tab.zoomFactor);
     tab.view.webContents.setZoomFactor(tab.zoomFactor);
+    // Remember the level for this site (never from private tabs, never for DASH's own pages).
+    const host = this.zoomHostOf(tab);
+    if (host) getDatabase().setSiteZoom(host, tab.zoomFactor);
     this.onStateChange(this.getTabState(tab));
+  }
+
+  /** Re-reads each open tab's saved zoom (used after a site's zoom is reset from Settings). */
+  applySavedZoomToOpenTabs(): void {
+    for (const tab of this.tabs.values()) {
+      const host = this.zoomHostOf(tab);
+      if (!host || !tab.view) continue;
+      const saved = getDatabase().getSiteZoom(host) ?? 1;
+      tab.zoomFactor = saved;
+      tab.view.webContents.setZoomFactor(saved);
+      this.onStateChange(this.getTabState(tab));
+    }
+  }
+
+  private zoomHostOf(tab: Tab): string | null {
+    if (tab.isPrivate || tab.internalPage || tab.isNewTabPage || !tab.view) return null;
+    try {
+      const u = new URL(tab.view.webContents.getURL());
+      return u.protocol === 'https:' || u.protocol === 'http:' ? u.hostname.replace(/^www\./, '') : null;
+    } catch {
+      return null;
+    }
   }
 
   // ---- Page actions ----
@@ -805,10 +832,18 @@ export class TabManager {
     if (!/^https?:\/\//i.test(origin)) return;
     const cred = this.findCredentials(origin);
     if (!cred) return;
+    this.fillLogin(wc, cred, false);
+  }
+
+  /** Fills a login form. `force` also overwrites a field that already has text (an explicit pick from the menu). */
+  private fillLogin(wc: Electron.WebContents, cred: { username: string; password: string }, force: boolean): void {
     const script = `(() => {
       const cred = ${JSON.stringify(cred)};
+      const force = ${force ? 'true' : 'false'};
       const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; };
-      const pw = Array.from(document.querySelectorAll('input[type=password]')).find((el) => visible(el) && !el.value);
+      const active = document.activeElement;
+      const pw = (active && active.type === 'password' && visible(active) ? active : null)
+        || Array.from(document.querySelectorAll('input[type=password]')).find((el) => visible(el) && (force || !el.value));
       if (!pw) return false;
       const set = (el, v) => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
@@ -820,8 +855,29 @@ export class TabManager {
       const fields = Array.from(scope.querySelectorAll('input')).filter((el) => visible(el) && ['text', 'email', 'tel', ''].includes(el.type));
       let user = null;
       for (const f of fields) { if (f.compareDocumentPosition(pw) & Node.DOCUMENT_POSITION_FOLLOWING) user = f; }
-      if (user && !user.value) set(user, cred.username);
+      if (user && (force || !user.value)) set(user, cred.username);
       set(pw, cred.password);
+      return true;
+    })()`;
+    wc.executeJavaScript(script, false).catch(() => undefined);
+  }
+
+  /** Puts a generated password in the focused password field and in empty password fields beside it (a "confirm" box). */
+  private fillGenerated(wc: Electron.WebContents, password: string): void {
+    const script = `(() => {
+      const pwd = ${JSON.stringify(password)};
+      const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; };
+      const set = (el, v) => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(el, v);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      const active = document.activeElement;
+      if (!active || active.type !== 'password') return false;
+      set(active, pwd);
+      const scope = active.form || document;
+      for (const el of scope.querySelectorAll('input[type=password]')) if (el !== active && visible(el) && !el.value) set(el, pwd);
       return true;
     })()`;
     wc.executeJavaScript(script, false).catch(() => undefined);
@@ -836,6 +892,23 @@ export class TabManager {
       const open = (url: string): void => {
         if (/^https?:/i.test(url)) this.createTab(url, tab.isPrivate);
       };
+
+      // Password field: pick a saved login (never in private tabs) or fill a strong generated password.
+      if (params.formControlType === 'input-password' && !tab.isPrivate) {
+        let pageOrigin = '';
+        try {
+          pageOrigin = new URL(wc.getURL()).origin;
+        } catch {
+          /* no page origin */
+        }
+        if (/^https?:/i.test(pageOrigin)) {
+          const logins = this.findAllCredentials(pageOrigin);
+          for (const l of logins) {
+            items.push({ label: `Fill login: ${l.username || '(no username)'}`, click: () => this.fillLogin(wc, l, true) });
+          }
+          items.push({ label: 'Use a strong password', click: () => this.fillGenerated(wc, this.generatePassword()) }, { type: 'separator' });
+        }
+      }
 
       if (params.linkURL) {
         items.push(
@@ -1023,6 +1096,15 @@ export class TabManager {
       // switching into or out of one — see navigate()'s comments.)
       if (tab.isNewTabPage && !navigatedUrl.startsWith('data:')) tab.isNewTabPage = false;
       tab.faviconUrl = null; // clear the old site's icon until the new page reports its own
+      // Apply the zoom saved for this site (or 1 when none) so it survives restarts and new tabs.
+      const host = this.zoomHostOf(tab);
+      if (host) {
+        const saved = getDatabase().getSiteZoom(host) ?? 1;
+        if (saved !== tab.zoomFactor) {
+          tab.zoomFactor = saved;
+          wc.setZoomFactor(saved);
+        }
+      }
       push();
     });
     wc.on('did-navigate-in-page', push);

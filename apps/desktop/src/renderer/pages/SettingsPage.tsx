@@ -3,7 +3,7 @@ import type { ImportSource } from '../../shared/ipc-channels';
 import { useSettingsStore } from '../store/settings-store';
 import { SEARCH_ENGINES, DOH_PROVIDERS, type SearchEngineId, type ThemeMode } from '../../shared/ipc-channels';
 import { PasswordsPanel } from '../components/PasswordsPanel';
-import { PermissionsPanel } from '../components/PermissionsPanel';
+import { SiteSettingsPanel } from '../components/SiteSettingsPanel';
 import { NewTabAppearance } from '../components/NewTabAppearance';
 import { AppThemeAppearance } from '../components/AppThemeAppearance';
 import { VpnSettings } from '../components/VpnSettings';
@@ -58,7 +58,7 @@ export function SettingsPage() {
   };
 
   if (subPage === 'passwords') return <PasswordsPanel onClose={() => setSubPage('none')} />;
-  if (subPage === 'permissions') return <PermissionsPanel onClose={() => setSubPage('none')} />;
+  if (subPage === 'permissions') return <SiteSettingsPanel onClose={() => setSubPage('none')} />;
   if (subPage === 'report') return <PrivacyReportPanel onClose={() => setSubPage('none')} />;
   if (subPage === 'extensions') return <ExtensionsPanel onClose={() => setSubPage('none')} />;
 
@@ -350,7 +350,7 @@ export function SettingsPage() {
           onClick={() => setSubPage('permissions')}
           className="w-full flex items-center justify-between h-10 px-3 rounded-lg bg-surface-elevated border border-border/60 text-[13px] text-text-primary hover:bg-surface-hover transition-colors"
         >
-          Site permissions
+          Site settings (permissions, zoom, blocking)
           <span className="text-text-tertiary">›</span>
         </button>
       </Section>

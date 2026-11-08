@@ -4,6 +4,7 @@ interface SavePromptPayload {
   promptId: string;
   origin: string;
   username: string;
+  isUpdate: boolean;
 }
 
 export function PasswordSavePrompt() {
@@ -23,7 +24,7 @@ export function PasswordSavePrompt() {
   return (
     <div className="app-no-drag absolute top-14 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 rounded-lg bg-surface-elevated border border-border shadow-2xl">
       <span className="text-[13px] text-text-primary">
-        Save password for <span className="font-medium">{prompt.username}</span> on{' '}
+        {prompt.isUpdate ? 'Update saved password for' : 'Save password for'} <span className="font-medium">{prompt.username}</span> on{' '}
         <span className="text-text-secondary">{prompt.origin}</span>?
       </span>
       <button
@@ -36,7 +37,7 @@ export function PasswordSavePrompt() {
         onClick={() => respond(true)}
         className="text-[12px] font-medium text-white bg-accent hover:opacity-90 px-3 py-1 rounded-full transition-opacity"
       >
-        Save
+        {prompt.isUpdate ? 'Update' : 'Save'}
       </button>
     </div>
   );

@@ -66,6 +66,8 @@ interface PendingLoginSave {
   origin: string;
   username: string;
   password: string;
+  /** Set when this is a changed password for a login that is already saved. */
+  updateId?: number;
 }
 
 // ---- Before ready: one instance, safe rendering after repeated graphics crashes, unclean-exit detection ----
@@ -173,7 +175,9 @@ app.whenReady().then(async () => {
 
   function handleDetectedLogin(detected: DetectedLogin): void {
     if (detected.webContentsId === undefined) return;
-    if (passwordManager.list().some((p) => p.origin === detected.origin && p.username === detected.username)) return;
+    const saved = passwordManager.find(detected.origin, detected.username);
+    // Same login, same password: nothing to ask. Same login, new password: offer to update it.
+    if (saved && !passwordManager.differsFrom(saved, detected.password)) return;
 
     for (const { win, tabManager } of getAllWindowContexts()) {
       const tabId = tabManager.findTabIdByWebContentsId(detected.webContentsId);
@@ -183,11 +187,13 @@ app.whenReady().then(async () => {
         origin: detected.origin,
         username: detected.username,
         password: detected.password,
+        updateId: saved?.id,
       });
       win.webContents.send(IPC.PASSWORD_SAVE_PROMPT, {
         promptId,
         origin: detected.origin,
         username: detected.username,
+        isUpdate: !!saved,
       });
       return;
     }
@@ -202,7 +208,8 @@ app.whenReady().then(async () => {
     const pending = pendingLoginSaves.get(promptId);
     pendingLoginSaves.delete(promptId);
     if (!pending || !save) return;
-    passwordManager.add(pending.origin, pending.username, pending.password);
+    if (pending.updateId !== undefined) passwordManager.update(pending.updateId, pending.password);
+    else passwordManager.add(pending.origin, pending.username, pending.password);
   }
 
   // ---- App-wide session persistence ----
@@ -323,7 +330,9 @@ app.whenReady().then(async () => {
       loadInternalPage,
       (wc) => registerInternalPage(wc, contextRef.current!),
       (webContentsId) => unregisterInternalPage(webContentsId),
-      (origin) => passwordManager.findForOrigin(origin)
+      (origin) => passwordManager.findForOrigin(origin),
+      (origin) => passwordManager.findAllForOrigin(origin),
+      () => passwordManager.generate()
     );
     contextRef.current = { win, tabManager };
 

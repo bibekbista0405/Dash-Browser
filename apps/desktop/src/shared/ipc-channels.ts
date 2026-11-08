@@ -60,6 +60,8 @@ export const IPC = {
   PASSWORD_LIST: 'password:list',
   PASSWORD_REVEAL: 'password:reveal',
   PASSWORD_REMOVE: 'password:remove',
+  PASSWORD_GENERATE: 'password:generate',
+  PASSWORDS_IMPORT_CSV: 'passwords:import-csv',
   PASSWORD_SAVE_PROMPT: 'password:save-prompt', // main -> renderer push (detected login form)
   PASSWORD_SAVE_PROMPT_RESPOND: 'password:save-prompt-respond',
 
@@ -103,12 +105,15 @@ export const IPC = {
   SITE_INFO: 'site:info',
   SITE_SET_PROTECTION: 'site:set-protection',
   SITE_CLEAR_DATA: 'site:clear-data',
+  SITE_ZOOM_LIST: 'site:zoom-list',
+  SITE_ZOOM_RESET: 'site:zoom-reset',
   DEVTOOLS_TOGGLE: 'devtools:toggle',
   PAGE_READER: 'page:reader',
 
   BOOKMARKS_EXPORT: 'bookmarks:export',
   BOOKMARKS_IMPORT: 'bookmarks:import',
   BOOKMARK_SET_FOLDER: 'bookmark:set-folder',
+  BOOKMARK_MOVE: 'bookmark:move',
   BOOKMARKS_CHANGED: 'bookmarks:changed', // main -> all windows/internal pages
   IMPORT_DETECT: 'import:detect',
   IMPORT_RUN: 'import:run',

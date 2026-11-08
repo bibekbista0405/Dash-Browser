@@ -942,3 +942,25 @@ Click the lock / "Not secure" badge in the address bar.
 Limits: the switch covers the request blocker, not the YouTube ad-skipping script or HTTPS-only/tracking-parameter stripping, which stay global. Cookie counts include cookies from the site's parent domains, because those are the ones sent.
 
 Tested in the real app: blocked 3 -> 0 with protection off -> 3 again after turning it back on; cookie count 2 -> cleared 2 -> 0; invalid host rejected; permission Reset removes the saved choice; panel opens over the page and closes with Esc.
+
+## Milestone 30 — Tier 2 batch: bookmarks, site settings, passwords
+
+### Better bookmarks
+- **Drag to reorder** on the bookmarks bar; drop a bookmark on a folder button to move it in. Order is saved (new `position` column; existing bookmarks keep their old order).
+- **Nested folders** by path: name a folder `Work/Docs`. The bar shows `Work`; its menu shows `Docs` as a section. (Folders are path names, not separate objects, so an empty folder cannot exist and renaming a parent means moving its bookmarks.)
+- Search inside bookmarks already existed on the Bookmarks page. The page now lists in bar order (it used to be newest first).
+
+### Site settings (Settings → Site settings)
+One searchable list per site: saved permissions, **page zoom (now remembered per site across restarts)**, blocking switched off, kept-on-exit and never-sleep entries. Each has a × and there is "Forget all". Private tabs neither save nor apply saved zoom.
+
+### Password manager
+- **Update prompt:** if you log in with a saved username but a different password, DASH asks "Update saved password?" (same password = no prompt).
+- **Several logins for one site:** DASH no longer auto-fills when a site has more than one saved login (it could pick the wrong account). Right-click the password field → "Fill login: <name>".
+- **Generator:** right-click a password field → "Use a strong password" (fills it and any empty confirm box), or **Generate** in Settings → Passwords. 20 characters by default, from the OS secure random source, no look-alike characters.
+- **Import CSV:** Settings → Passwords → Import CSV reads the file Chrome and Edge export (chrome://password-manager → Export). Existing site+username pairs are left as they are. Refuses to import if the OS keystore is unavailable, so nothing is stored unencrypted. DASH cannot read Chrome's own encrypted database; the CSV is plain text, so delete it afterwards.
+
+### Tested
+Real app: reorder and drag-and-drop (bar and folder drop), nested folder menu, zoom saved and applied to a new tab, site-settings list and removals, update prompt and no prompt for an unchanged password, single versus two-login autofill, both right-click fill items clicked in the native menu. Unit tests: CSV parser (quotes, commas, line breaks inside fields, BOM, invalid rows) and generator (500 samples). Password tests ran with Electron's plaintext fallback switched on from a test-only launcher, because the sandbox has no OS keyring; the shipped app never uses it.
+
+### Not verified
+Import CSV through the real file dialog (parsing and import logic are tested, the dialog is not), a real Chrome/Edge export file, a real OS keyring, Windows.

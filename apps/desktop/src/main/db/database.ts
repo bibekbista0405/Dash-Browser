@@ -143,6 +143,11 @@ class DashDatabase {
       );
       CREATE INDEX IF NOT EXISTS idx_passwords_origin ON passwords(origin);
 
+      CREATE TABLE IF NOT EXISTS site_zoom (
+        host TEXT PRIMARY KEY,
+        factor REAL NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS permissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         origin TEXT NOT NULL,
@@ -192,6 +197,11 @@ class DashDatabase {
     const bookmarkColumns = this.db.prepare(`PRAGMA table_info(bookmarks)`).all() as { name: string }[];
     if (!bookmarkColumns.some((c) => c.name === 'favicon_url')) {
       this.db.exec(`ALTER TABLE bookmarks ADD COLUMN favicon_url TEXT`);
+    }
+    if (!bookmarkColumns.some((c) => c.name === 'position')) {
+      // Manual order. Existing bookmarks keep their old order (oldest first), which is what the bar showed.
+      this.db.exec(`ALTER TABLE bookmarks ADD COLUMN position INTEGER NOT NULL DEFAULT 0`);
+      this.db.exec(`UPDATE bookmarks SET position = id`);
     }
   }
 
@@ -247,7 +257,10 @@ class DashDatabase {
       .get(url) as BookmarkEntry | undefined;
     if (existing) return existing;
     const info = this.db
-      .prepare(`INSERT INTO bookmarks (url, title, favicon_url, folder, created_at) VALUES (?, ?, ?, ?, ?)`)
+      .prepare(
+        `INSERT INTO bookmarks (url, title, favicon_url, folder, created_at, position)
+         VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM bookmarks))`
+      )
       .run(url, title, faviconUrl, folder, Date.now());
     return {
       id: Number(info.lastInsertRowid),
@@ -267,7 +280,8 @@ class DashDatabase {
   importBookmarks(items: { url: string; title: string; folder: string | null; addedAt: number }[]): number {
     const exists = this.db.prepare(`SELECT 1 FROM bookmarks WHERE url = ? LIMIT 1`);
     const insert = this.db.prepare(
-      `INSERT INTO bookmarks (url, title, favicon_url, folder, created_at) VALUES (?, ?, NULL, ?, ?)`
+      `INSERT INTO bookmarks (url, title, favicon_url, folder, created_at, position)
+       VALUES (?, ?, NULL, ?, ?, (SELECT COALESCE(MAX(position), 0) + 1 FROM bookmarks))`
     );
     let added = 0;
     this.db.transaction(() => {
@@ -295,6 +309,43 @@ class DashDatabase {
     return added;
   }
 
+  /** Puts bookmark `id` just before `beforeId` (or last when null) and optionally changes its folder in the same step. */
+  moveBookmark(id: number, beforeId: number | null, folder?: string | null): void {
+    this.db.transaction(() => {
+      const ids = (this.db.prepare(`SELECT id FROM bookmarks ORDER BY position ASC, id ASC`).all() as { id: number }[])
+        .map((r) => r.id)
+        .filter((x) => x !== id);
+      if (!(this.db.prepare(`SELECT 1 FROM bookmarks WHERE id = ?`).get(id))) return;
+      const at = beforeId === null ? -1 : ids.indexOf(beforeId);
+      if (at < 0) ids.push(id);
+      else ids.splice(at, 0, id);
+      const set = this.db.prepare(`UPDATE bookmarks SET position = ? WHERE id = ?`);
+      ids.forEach((bid, i) => set.run(i + 1, bid));
+      if (folder !== undefined) this.db.prepare(`UPDATE bookmarks SET folder = ? WHERE id = ?`).run(folder, id);
+    })();
+  }
+
+  // ---- Per-site zoom ----
+  getSiteZoom(host: string): number | null {
+    const row = this.db.prepare(`SELECT factor FROM site_zoom WHERE host = ?`).get(host) as { factor: number } | undefined;
+    return row ? row.factor : null;
+  }
+
+  /** A factor of 1 is the default, so it is stored as "no entry". */
+  setSiteZoom(host: string, factor: number): void {
+    if (Math.abs(factor - 1) < 0.001) {
+      this.db.prepare(`DELETE FROM site_zoom WHERE host = ?`).run(host);
+      return;
+    }
+    this.db
+      .prepare(`INSERT INTO site_zoom (host, factor) VALUES (?, ?) ON CONFLICT(host) DO UPDATE SET factor = excluded.factor`)
+      .run(host, factor);
+  }
+
+  listSiteZoom(): { host: string; factor: number }[] {
+    return this.db.prepare(`SELECT host, factor FROM site_zoom ORDER BY host ASC`).all() as { host: string; factor: number }[];
+  }
+
   removeBookmark(id: number): void {
     this.db.prepare(`DELETE FROM bookmarks WHERE id = ?`).run(id);
   }
@@ -302,7 +353,7 @@ class DashDatabase {
   listBookmarks(): BookmarkEntry[] {
     const rows = this.db
       .prepare(
-        `SELECT id, url, title, favicon_url as faviconUrl, folder, created_at as createdAt FROM bookmarks ORDER BY created_at DESC`
+        `SELECT id, url, title, favicon_url as faviconUrl, folder, created_at as createdAt FROM bookmarks ORDER BY position ASC, id ASC`
       )
       .all();
     return rows as BookmarkEntry[];
@@ -498,6 +549,10 @@ class DashDatabase {
       | { encryptedPassword: Buffer }
       | undefined;
     return row ? new Uint8Array(row.encryptedPassword) : null;
+  }
+
+  updatePassword(id: number, encryptedPassword: Uint8Array): void {
+    this.db.prepare(`UPDATE passwords SET encrypted_password = ?, created_at = ? WHERE id = ?`).run(Buffer.from(encryptedPassword), Date.now(), id);
   }
 
   removePassword(id: number): void {

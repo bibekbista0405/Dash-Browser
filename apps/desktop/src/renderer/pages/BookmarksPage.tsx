@@ -64,7 +64,7 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
 
       {grouped.map(([folder, items]) => (
         <div key={folder} className="mb-4">
-          <div className="text-[12px] font-medium text-text-tertiary uppercase tracking-wide mb-1">{folder}</div>
+          <div className="text-[12px] font-medium text-text-tertiary uppercase tracking-wide mb-1">{folder.split('/').map((x) => x.trim()).join(' / ')}</div>
           <div className="rounded-lg border border-border/60 overflow-hidden">
             {items.map((b) => (
               <div
@@ -120,8 +120,8 @@ export function BookmarksPage({ tabId }: { tabId: string }) {
                         }
                         if (e.key === 'Escape') setMovingId(null);
                       }}
-                      placeholder="New folder name ↵"
-                      className="h-7 w-36 rounded-md bg-surface border border-border/60 text-[12px] px-2 text-text-primary placeholder:text-text-tertiary"
+                      placeholder="New folder ↵ (use / for sub-folders)"
+                      className="h-7 w-56 rounded-md bg-surface border border-border/60 text-[12px] px-2 text-text-primary placeholder:text-text-tertiary"
                     />
                   </div>
                 ) : (

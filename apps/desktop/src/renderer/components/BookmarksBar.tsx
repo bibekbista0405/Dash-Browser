@@ -6,6 +6,11 @@ import { useDetachesActiveViewWhileOpen } from '../hooks/useDetachesActiveViewWh
 
 type Entry = { kind: 'bookmark'; bookmark: BookmarkEntry } | { kind: 'folder'; name: string; items: BookmarkEntry[] };
 
+const DRAG_TYPE = 'application/x-dash-bookmark';
+
+/** Folder names use "/" for nesting ("Work/Docs"); the bar shows the top level and the menu shows the rest. */
+const topFolder = (name: string): string => name.split('/')[0].trim() || name;
+
 const OVERFLOW_BUTTON_WIDTH = 36;
 const ITEM_GAP = 4;
 
@@ -13,15 +18,16 @@ const ITEM_GAP = 4;
 function buildEntries(bookmarks: BookmarkEntry[]): Entry[] {
   const entries: Entry[] = [];
   const folders = new Map<string, Extract<Entry, { kind: 'folder' }>>();
-  for (const b of [...bookmarks].reverse()) {
+  for (const b of bookmarks) {
     if (!b.folder) {
       entries.push({ kind: 'bookmark', bookmark: b });
       continue;
     }
-    let folder = folders.get(b.folder);
+    const top = topFolder(b.folder);
+    let folder = folders.get(top);
     if (!folder) {
-      folder = { kind: 'folder', name: b.folder, items: [] };
-      folders.set(b.folder, folder);
+      folder = { kind: 'folder', name: top, items: [] };
+      folders.set(top, folder);
       entries.push(folder);
     }
     folder.items.push(b);
@@ -29,9 +35,24 @@ function buildEntries(bookmarks: BookmarkEntry[]): Entry[] {
   return entries;
 }
 
+/** Direct bookmarks first, then one labelled section per sub-folder ("Work/Docs" under "Work" shows as "Docs"). */
+function folderMenuEntries(folder: Extract<Entry, { kind: 'folder' }>): Entry[] {
+  const out: Entry[] = [];
+  const subs = new Map<string, BookmarkEntry[]>();
+  for (const b of folder.items) {
+    const rest = (b.folder ?? '').split('/').slice(1).map((x) => x.trim()).filter(Boolean).join(' / ');
+    if (!rest) out.push({ kind: 'bookmark', bookmark: b });
+    else subs.set(rest, [...(subs.get(rest) ?? []), b]);
+  }
+  for (const [name, items] of [...subs.entries()].sort(([a], [b]) => a.localeCompare(b))) out.push({ kind: 'folder', name, items });
+  return out;
+}
+
 export function BookmarksBar() {
   const bookmarks = useBookmarksStore((s) => s.bookmarks);
   const remove = useBookmarksStore((s) => s.remove);
+  const move = useBookmarksStore((s) => s.move);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const activeTab = useTabsStore(activeTabOf);
   const entries = useMemo(() => buildEntries(bookmarks), [bookmarks]);
 
@@ -96,9 +117,22 @@ export function BookmarksBar() {
         <button
           key={key}
           tabIndex={interactive ? 0 : -1}
-          onClick={(e) => interactive && openMenu(e.currentTarget, entry.items.map((b) => ({ kind: 'bookmark' as const, bookmark: b })), entry.name)}
+          onClick={(e) => interactive && openMenu(e.currentTarget, folderMenuEntries(entry), entry.name)}
           className="shrink-0 flex items-center gap-1.5 h-6 max-w-[160px] px-2 rounded-md text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary"
           title={entry.name}
+          onDragOver={(e) => {
+            if (!interactive || !e.dataTransfer.types.includes(DRAG_TYPE)) return;
+            e.preventDefault();
+            setDropTarget(`f:${entry.name}`);
+          }}
+          onDragLeave={() => setDropTarget(null)}
+          onDrop={(e) => {
+            if (!interactive) return;
+            e.preventDefault();
+            setDropTarget(null);
+            const id = Number(e.dataTransfer.getData(DRAG_TYPE));
+            if (id) void move(id, null, entry.name);
+          }}
         >
           <span aria-hidden>📁</span>
           <span className="truncate">{entry.name}</span>
@@ -107,7 +141,29 @@ export function BookmarksBar() {
     }
     const b = entry.bookmark;
     return (
-      <div key={key} className="group relative shrink-0">
+      <div
+        key={key}
+        className={`group relative shrink-0 ${dropTarget === `b:${b.id}` ? 'border-l-2 border-accent' : ''}`}
+        draggable={interactive}
+        onDragStart={(e) => {
+          e.dataTransfer.setData(DRAG_TYPE, String(b.id));
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onDragEnd={() => setDropTarget(null)}
+        onDragOver={(e) => {
+          if (!interactive || !e.dataTransfer.types.includes(DRAG_TYPE)) return;
+          e.preventDefault();
+          setDropTarget(`b:${b.id}`);
+        }}
+        onDragLeave={() => setDropTarget(null)}
+        onDrop={(e) => {
+          if (!interactive) return;
+          e.preventDefault();
+          setDropTarget(null);
+          const id = Number(e.dataTransfer.getData(DRAG_TYPE));
+          if (id && id !== b.id) void move(id, b.id, null);
+        }}
+      >
         <button
           title={b.title}
           tabIndex={interactive ? 0 : -1}

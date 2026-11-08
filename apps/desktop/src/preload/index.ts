@@ -53,6 +53,8 @@ const dashApi = {
       ipcRenderer.invoke(IPC.GROUP_UPDATE, groupId, patch),
     closeGroup: (groupId: string): Promise<void> => ipcRenderer.invoke(IPC.GROUP_CLOSE, groupId),
     sleepStats: (): Promise<{ sleeping: number; freedMb: number }> => ipcRenderer.invoke(IPC.TABS_SLEEP_STATS),
+    siteZoomList: (): Promise<{ host: string; factor: number }[]> => ipcRenderer.invoke(IPC.SITE_ZOOM_LIST),
+    resetSiteZoom: (host: string): Promise<void> => ipcRenderer.invoke(IPC.SITE_ZOOM_RESET, host),
     siteInfo: (id: string): Promise<SiteInfo | null> => ipcRenderer.invoke(IPC.SITE_INFO, id),
     setSiteProtection: (host: string, off: boolean): Promise<void> => ipcRenderer.invoke(IPC.SITE_SET_PROTECTION, host, off),
     clearSiteData: (id: string): Promise<number> => ipcRenderer.invoke(IPC.SITE_CLEAR_DATA, id),
@@ -83,6 +85,7 @@ const dashApi = {
     export: (): Promise<{ exported: number } | null> => ipcRenderer.invoke(IPC.BOOKMARKS_EXPORT),
     import: (): Promise<{ imported: number } | null> => ipcRenderer.invoke(IPC.BOOKMARKS_IMPORT),
     setFolder: (id: number, folder: string | null): Promise<void> => ipcRenderer.invoke(IPC.BOOKMARK_SET_FOLDER, id, folder),
+    move: (id: number, beforeId: number | null, folder?: string | null): Promise<void> => ipcRenderer.invoke(IPC.BOOKMARK_MOVE, id, beforeId, folder),
     onChanged: (cb: () => void): (() => void) => {
       const listener = () => cb();
       ipcRenderer.on(IPC.BOOKMARKS_CHANGED, listener);
@@ -151,10 +154,12 @@ const dashApi = {
     list: (): Promise<PasswordEntry[]> => ipcRenderer.invoke(IPC.PASSWORD_LIST),
     reveal: (id: number): Promise<string> => ipcRenderer.invoke(IPC.PASSWORD_REVEAL, id),
     remove: (id: number): Promise<void> => ipcRenderer.invoke(IPC.PASSWORD_REMOVE, id),
+    generate: (length?: number): Promise<string> => ipcRenderer.invoke(IPC.PASSWORD_GENERATE, length),
+    importCsv: (): Promise<{ imported: number; alreadySaved: number; invalid: number } | null> => ipcRenderer.invoke(IPC.PASSWORDS_IMPORT_CSV),
     respondToSavePrompt: (promptId: string, save: boolean): Promise<void> =>
       ipcRenderer.invoke(IPC.PASSWORD_SAVE_PROMPT_RESPOND, promptId, save),
-    onSavePrompt: (cb: (payload: { promptId: string; origin: string; username: string }) => void): (() => void) => {
-      const listener = (_e: Electron.IpcRendererEvent, payload: { promptId: string; origin: string; username: string }) =>
+    onSavePrompt: (cb: (payload: { promptId: string; origin: string; username: string; isUpdate: boolean }) => void): (() => void) => {
+      const listener = (_e: Electron.IpcRendererEvent, payload: { promptId: string; origin: string; username: string; isUpdate: boolean }) =>
         cb(payload);
       ipcRenderer.on(IPC.PASSWORD_SAVE_PROMPT, listener);
       return () => ipcRenderer.removeListener(IPC.PASSWORD_SAVE_PROMPT, listener);

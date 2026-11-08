@@ -8,6 +8,7 @@ interface BookmarksStore {
   add: (url: string, title: string, faviconUrl?: string | null) => Promise<void>;
   remove: (id: number) => Promise<void>;
   setFolder: (id: number, folder: string | null) => Promise<void>;
+  move: (id: number, beforeId: number | null, folder?: string | null) => Promise<void>;
   isBookmarked: (url: string) => boolean;
   findByUrl: (url: string) => BookmarkEntry | undefined;
 }
@@ -35,6 +36,11 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
 
   setFolder: async (id, folder) => {
     await window.dash.bookmarks.setFolder(id, folder);
+    await get().load();
+  },
+
+  move: async (id, beforeId, folder) => {
+    await window.dash.bookmarks.move(id, beforeId, folder);
     await get().load();
   },
 

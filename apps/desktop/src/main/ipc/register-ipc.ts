@@ -1,7 +1,8 @@
 import { ipcMain, WebContents, dialog, nativeImage, app, webContents as electronWebContents, session } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { IPC, type DashSettings, type PermissionDecision, SEARCH_ENGINES, DOH_PROVIDERS, NEWTAB_CSS_MAX_LENGTH, APP_CSS_MAX_LENGTH, HOST_LIST_MAX_LENGTH, parseHostList, hostInList, type SiteInfo } from '../../shared/ipc-channels';
+import { IPC, type DashSettings, type PermissionDecision, SEARCH_ENGINES, DOH_PROVIDERS, NEWTAB_CSS_MAX_LENGTH, APP_CSS_MAX_LENGTH, HOST_LIST_MAX_LENGTH, parseHostList, hostInList, parsePasswordCsv, type SiteInfo } from '../../shared/ipc-channels';
 import type { DownloadManager } from '../services/download-manager';
 import type { BlockedCountTracker } from '../services/blocked-count-tracker';
 import type { PasswordManager } from '../services/password-manager';
@@ -341,6 +342,19 @@ export function registerIpcHandlers(services: IpcServices): void {
     return cookies.length;
   });
 
+  ipcMain.handle(IPC.SITE_ZOOM_LIST, (e) => {
+    requireContext(e.sender);
+    return getDatabase().listSiteZoom();
+  });
+
+  ipcMain.handle(IPC.SITE_ZOOM_RESET, (e, host: unknown) => {
+    requireContext(e.sender);
+    assertString(host, 'host');
+    getDatabase().setSiteZoom(bareHost(host), 1);
+    // Open tabs on that site go back to 100% right away.
+    for (const ctx of getAllWindowContexts()) ctx.tabManager.applySavedZoomToOpenTabs();
+  });
+
   ipcMain.handle(IPC.PAGE_READER, (e, id: unknown) => {
     const { tabManager } = requireContext(e.sender);
     assertString(id, 'id');
@@ -380,6 +394,22 @@ export function registerIpcHandlers(services: IpcServices): void {
     const entry = getDatabase().addBookmark(url, title, null, (faviconUrl as string | undefined) ?? null);
     onBookmarksChanged();
     return entry;
+  });
+
+  ipcMain.handle(IPC.BOOKMARK_MOVE, (e, id: unknown, beforeId: unknown, folder: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    if (beforeId !== null) assertNumber(beforeId, 'beforeId');
+    let name: string | null | undefined;
+    if (folder === undefined) name = undefined;
+    else if (folder === null) name = null;
+    else {
+      assertString(folder, 'folder');
+      if (folder.length > 200) throw new Error('DASH: folder name too long');
+      name = folder.trim() || null;
+    }
+    getDatabase().moveBookmark(id, beforeId as number | null, name);
+    onBookmarksChanged();
   });
 
   ipcMain.handle(IPC.BOOKMARK_SET_FOLDER, (e, id: unknown, folder: unknown) => {
@@ -519,6 +549,27 @@ export function registerIpcHandlers(services: IpcServices): void {
     requireContext(e.sender);
     assertNumber(id, 'id');
     passwordManager.remove(id);
+  });
+
+  ipcMain.handle(IPC.PASSWORD_GENERATE, (e, length: unknown) => {
+    requireContext(e.sender);
+    return passwordManager.generate(typeof length === 'number' ? length : undefined);
+  });
+
+  ipcMain.handle(IPC.PASSWORDS_IMPORT_CSV, async (e) => {
+    const { win } = requireContext(e.sender);
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Import passwords from a Chrome or Edge CSV export',
+      properties: ['openFile'],
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const stat = await fs.promises.stat(result.filePaths[0]);
+    if (stat.size > 20 * 1024 * 1024) throw new Error('DASH: that file is too large to be a password export.');
+    const parsed = parsePasswordCsv(await fs.promises.readFile(result.filePaths[0], 'utf8'));
+    if (parsed.error) throw new Error(parsed.error);
+    const { imported, alreadySaved } = passwordManager.importLogins(parsed.logins);
+    return { imported, alreadySaved, invalid: parsed.invalid };
   });
 
   ipcMain.handle(IPC.PASSWORD_SAVE_PROMPT_RESPOND, (e, promptId: unknown, save: unknown) => {
