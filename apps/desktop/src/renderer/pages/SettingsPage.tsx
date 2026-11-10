@@ -1,8 +1,10 @@
+import { BackupSettings } from '../components/BackupSettings';
 import { useEffect, useState } from 'react';
 import type { ImportSource } from '../../shared/ipc-channels';
 import { useSettingsStore } from '../store/settings-store';
 import { SEARCH_ENGINES, DOH_PROVIDERS, type SearchEngineId, type ThemeMode } from '../../shared/ipc-channels';
 import { PasswordsPanel } from '../components/PasswordsPanel';
+import { SpellCheckSettings } from '../components/SpellCheckSettings';
 import { SiteSettingsPanel } from '../components/SiteSettingsPanel';
 import { NewTabAppearance } from '../components/NewTabAppearance';
 import { AppThemeAppearance } from '../components/AppThemeAppearance';
@@ -14,11 +16,49 @@ import { ExtensionsPanel } from '../components/ExtensionsPanel';
 
 type SubPage = 'none' | 'passwords' | 'permissions' | 'extensions' | 'report';
 
+
+interface SectionDef {
+  id: string;
+  cat: CategoryId;
+  title: string;
+  keywords: string;
+  body: React.ReactNode;
+  /** The body draws its own heading. */
+  bare?: boolean;
+}
+
+type CategoryId = 'general' | 'appearance' | 'privacy' | 'network' | 'passwords' | 'access' | 'performance' | 'extensions' | 'data' | 'about';
+
+const CATEGORIES: { id: CategoryId; label: string; icon: string }[] = [
+  { id: 'general', label: 'General', icon: '⚙' },
+  { id: 'appearance', label: 'Appearance & Themes', icon: '🎨' },
+  { id: 'privacy', label: 'Privacy & Security', icon: '🛡' },
+  { id: 'network', label: 'VPN & Network', icon: '⇄' },
+  { id: 'passwords', label: 'Passwords', icon: '🔑' },
+  { id: 'access', label: 'Accessibility & Language', icon: '♿' },
+  { id: 'performance', label: 'Performance', icon: '⚡' },
+  { id: 'extensions', label: 'Extensions', icon: '🧩' },
+  { id: 'data', label: 'Import & Export', icon: '⇅' },
+  { id: 'about', label: 'About & Reset', icon: 'ⓘ' },
+];
+
+function loadCategory(): CategoryId {
+  try {
+    const saved = localStorage.getItem('dash-settings-category');
+    if (saved && CATEGORIES.some((c) => c.id === saved)) return saved as CategoryId;
+  } catch {
+    /* storage unavailable */
+  }
+  return 'general';
+}
+
 export function SettingsPage() {
   const { settings, load, subscribe, set, reset } = useSettingsStore();
   const [homepageDraft, setHomepageDraft] = useState(settings.homepage);
   const [lifetimeBlocked, setLifetimeBlocked] = useState<number | null>(null);
   const [subPage, setSubPage] = useState<SubPage>('none');
+  const [category, setCategory] = useState<CategoryId>(loadCategory);
+  const [query, setQuery] = useState('');
 
   const [clearOptions, setClearOptions] = useState({ history: true, cookies: true, cache: true, downloads: false });
   const [clearing, setClearing] = useState(false);
@@ -62,17 +102,14 @@ export function SettingsPage() {
   if (subPage === 'report') return <PrivacyReportPanel onClose={() => setSubPage('none')} />;
   if (subPage === 'extensions') return <ExtensionsPanel onClose={() => setSubPage('none')} />;
 
-  return (
-    <div className="max-w-3xl mx-auto py-8 px-6 space-y-8">
-      <div className="flex items-center gap-3">
-        <Logo size={34} className="text-text-primary" />
-        <div>
-          <h1 className="text-xl font-semibold text-text-primary leading-tight">Settings</h1>
-          <div className="text-[12px] text-text-tertiary">DASH · Privacy First. Built for You.</div>
-        </div>
-      </div>
-
-      <Section title="Appearance">
+  const sections: SectionDef[] = [
+    {
+      id: 'theme-mode',
+      cat: 'appearance',
+      title: 'Colour mode',
+      keywords: 'dark light system theme',
+      body: (
+        <>
         <div className="flex gap-2">
           {(['dark', 'light', 'system'] as ThemeMode[]).map((mode) => (
             <button
@@ -89,21 +126,38 @@ export function SettingsPage() {
             </button>
           ))}
         </div>
-      </Section>
-
-      <Section title="VPN">
-        <VpnSettings />
-      </Section>
-
-      <Section title="Browser Theme">
+        </>
+      ),
+    },
+    {
+      id: 'browser-theme',
+      cat: 'appearance',
+      title: 'Browser Theme',
+      keywords: 'custom css theme styler colours toolbar tabs sweet dream',
+      body: (
+        <>
         <AppThemeAppearance />
-      </Section>
-
-      <Section title="Home Page Theme">
+        </>
+      ),
+    },
+    {
+      id: 'home-theme',
+      cat: 'appearance',
+      title: 'Home Page Theme',
+      keywords: 'new tab page custom css theme styler classic wallpaper',
+      body: (
+        <>
         <NewTabAppearance />
-      </Section>
-
-      <Section title="Search Engine">
+        </>
+      ),
+    },
+    {
+      id: 'search',
+      cat: 'general',
+      title: 'Search Engine',
+      keywords: 'search google duckduckgo bing address bar',
+      body: (
+        <>
         <div className="space-y-1 rounded-lg border border-border/60 overflow-hidden">
           {(Object.entries(SEARCH_ENGINES) as [SearchEngineId, (typeof SEARCH_ENGINES)[SearchEngineId]][]).map(
             ([id, engine]) => (
@@ -119,9 +173,16 @@ export function SettingsPage() {
             )
           )}
         </div>
-      </Section>
-
-      <Section title="Homepage">
+        </>
+      ),
+    },
+    {
+      id: 'homepage',
+      cat: 'general',
+      title: 'Homepage',
+      keywords: 'home button',
+      body: (
+        <>
         <input
           value={homepageDraft}
           onChange={(e) => setHomepageDraft(e.target.value)}
@@ -138,9 +199,16 @@ export function SettingsPage() {
           What the Home button (⌂) goes to. A new tab (Ctrl/Cmd+T) always opens DASH's New Tab
           Page instead — the same distinction Chrome and Firefox make.
         </p>
-      </Section>
-
-      <Section title="Startup">
+        </>
+      ),
+    },
+    {
+      id: 'startup',
+      cat: 'general',
+      title: 'Startup',
+      keywords: 'restore tabs open on start',
+      body: (
+        <>
         <div className="flex gap-2">
           <button
             onClick={() => set('startupBehavior', 'homepage')}
@@ -157,32 +225,36 @@ export function SettingsPage() {
             Restore previous tabs
           </button>
         </div>
-      </Section>
-
-      <Section title="Toolbar">
+        </>
+      ),
+    },
+    {
+      id: 'toolbar',
+      cat: 'general',
+      title: 'Toolbar',
+      keywords: 'bookmarks bar vertical tabs sidebar',
+      body: (
+        <>
         <ToggleRow
           label="Show bookmarks bar (Ctrl+Shift+B)"
           checked={settings.showBookmarksBar}
           onChange={() => set('showBookmarksBar', !settings.showBookmarksBar)}
         />
-      </Section>
-
-      <Section title="Performance">
         <ToggleRow
-          label="Sleep inactive tabs"
-          checked={settings.sleepingTabsEnabled}
-          onChange={() => set('sleepingTabsEnabled', !settings.sleepingTabsEnabled)}
+          label="Vertical tabs (list tabs down the left side)"
+          checked={settings.verticalTabs}
+          onChange={() => set('verticalTabs', !settings.verticalTabs)}
         />
-        <SiteListField
-          label="Never sleep these sites (one per line)"
-          placeholder={'music.youtube.com\nmeet.google.com'}
-          value={settings.neverSleepHosts}
-          onSave={(v) => set('neverSleepHosts', v)}
-        />
-        <SleepStats />
-      </Section>
-
-      <Section title="Blocking">
+        </>
+      ),
+    },
+    {
+      id: 'blocking',
+      cat: 'privacy',
+      title: 'Ad & tracker blocking',
+      keywords: 'block ads trackers adblock',
+      body: (
+        <>
         <ToggleRow
           label="Block ads"
           checked={settings.adBlockingEnabled}
@@ -199,28 +271,59 @@ export function SettingsPage() {
             ? 'Loading stats…'
             : `DASH has blocked ${lifetimeBlocked.toLocaleString()} ad/tracker request${lifetimeBlocked === 1 ? '' : 's'} since install.`}
         </p>
-      </Section>
+        </>
+      ),
+    },
+    {
+      id: 'tracking',
+      cat: 'privacy',
+      title: 'Tracking protection',
+      keywords: 'https only do not track gpc global privacy control tracking parameters utm fingerprint third-party cookies',
+      body: (
+        <>
 
-      <Section title="Privacy">
-        <ToggleRow
+        <div className="space-y-2">
+<ToggleRow
           label="HTTPS-Only Mode"
           checked={settings.httpsOnlyMode}
           onChange={() => set('httpsOnlyMode', !settings.httpsOnlyMode)}
         />
-        <div className="h-2" />
-        <ToggleRow
+<ToggleRow
           label="Send Do Not Track and Global Privacy Control signals"
           checked={settings.sendPrivacySignals}
           onChange={() => set('sendPrivacySignals', !settings.sendPrivacySignals)}
         />
-        <div className="h-2" />
-        <ToggleRow
+<ToggleRow
           label="Remove tracking parameters from links (utm_*, fbclid, gclid…)"
           checked={settings.stripTrackingParams}
           onChange={() => set('stripTrackingParams', !settings.stripTrackingParams)}
         />
-        <div className="h-2" />
-        <ToggleRow
+<ToggleRow
+          label="Fingerprint protection (canvas, audio, hardware details)"
+          checked={settings.fingerprintProtection}
+          onChange={() => set('fingerprintProtection', !settings.fingerprintProtection)}
+        />
+<ToggleRow
+          label="Block third-party cookies"
+          checked={settings.blockThirdPartyCookies}
+          onChange={() => set('blockThirdPartyCookies', !settings.blockThirdPartyCookies)}
+        />
+        <p className="mt-1.5 text-[12px] text-text-tertiary">
+          Third-party cookie blocking can stop some "Sign in with…" buttons and embedded logins from working. Turn it off
+          if a login breaks.
+        </p>
+        </div>
+        </>
+      ),
+    },
+    {
+      id: 'exit',
+      cat: 'privacy',
+      title: 'Clear on exit',
+      keywords: 'clear history cookies cache quit keep sites',
+      body: (
+        <>
+<ToggleRow
           label="Clear browsing history when DASH quits"
           checked={settings.clearHistoryOnExit}
           onChange={() => set('clearHistoryOnExit', !settings.clearHistoryOnExit)}
@@ -239,55 +342,16 @@ export function SettingsPage() {
             onSave={(v) => set('keepSiteDataHosts', v)}
           />
         )}
-        <div className="h-2" />
-        <ToggleRow
-          label="Fingerprint protection (canvas, audio, hardware details)"
-          checked={settings.fingerprintProtection}
-          onChange={() => set('fingerprintProtection', !settings.fingerprintProtection)}
-        />
-        <div className="h-2" />
-        <ToggleRow
-          label="Block third-party cookies"
-          checked={settings.blockThirdPartyCookies}
-          onChange={() => set('blockThirdPartyCookies', !settings.blockThirdPartyCookies)}
-        />
-        <p className="mt-1.5 text-[12px] text-text-tertiary">
-          Third-party cookie blocking can stop some "Sign in with…" buttons and embedded logins from working. Turn it off
-          if a login breaks.
-        </p>
-        <div className="mt-3 rounded-lg bg-surface-elevated border border-border/60 p-3 space-y-2">
-          <div className="text-[13px] text-text-primary">Secure DNS (DNS-over-HTTPS)</div>
-          <div className="flex gap-2">
-            <select
-              aria-label="Secure DNS mode"
-              value={settings.dohMode}
-              onChange={(e) => set('dohMode', e.target.value as typeof settings.dohMode)}
-              className="h-8 flex-1 rounded-md bg-surface border border-border/60 text-[12px] text-text-primary px-2"
-            >
-              <option value="off">Off — use my operating system's DNS</option>
-              <option value="automatic">Automatic — try secure DNS, fall back if it fails</option>
-              <option value="secure">Always — never fall back (sites won't load if blocked)</option>
-            </select>
-            <select
-              aria-label="Secure DNS provider"
-              value={settings.dohProvider}
-              disabled={settings.dohMode === 'off'}
-              onChange={(e) => set('dohProvider', e.target.value as typeof settings.dohProvider)}
-              className="h-8 w-36 rounded-md bg-surface border border-border/60 text-[12px] text-text-primary px-2 disabled:opacity-50"
-            >
-              {Object.entries(DOH_PROVIDERS).map(([id, p]) => (
-                <option key={id} value={id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-          <p className="text-[12px] text-text-tertiary">
-            When on, the website names you visit are sent encrypted to the provider you choose, instead of to your
-            ISP's DNS. DASH never turns this on by itself.
-          </p>
-        </div>
-      </Section>
-
-      <Section title="Clear browsing data">
+        </>
+      ),
+    },
+    {
+      id: 'clear',
+      cat: 'privacy',
+      title: 'Clear browsing data',
+      keywords: 'history cookies cache downloads delete',
+      body: (
+        <>
         <div className="rounded-lg border border-border/60 divide-y divide-border/40">
           <CheckRow
             label="Browsing history"
@@ -325,9 +389,16 @@ export function SettingsPage() {
           </button>
           {clearedMessage && <span className="text-[12px] text-accent">{clearedMessage}</span>}
         </div>
-      </Section>
-
-      <Section title="Privacy Report">
+        </>
+      ),
+    },
+    {
+      id: 'report',
+      cat: 'privacy',
+      title: 'Privacy Report',
+      keywords: 'blocked statistics',
+      body: (
+        <>
         <button
           onClick={() => setSubPage('report')}
           className="w-full flex items-center justify-between h-10 px-3 rounded-lg bg-surface-elevated border border-border/60 text-[13px] text-text-primary hover:bg-surface-hover transition-colors"
@@ -335,27 +406,173 @@ export function SettingsPage() {
           Blocked ads &amp; trackers
           <span className="text-text-tertiary">›</span>
         </button>
-      </Section>
-
-      <Section title="Passwords & Permissions">
-        <button
-          onClick={() => setSubPage('passwords')}
-          className="w-full flex items-center justify-between h-10 px-3 rounded-lg bg-surface-elevated border border-border/60 text-[13px] text-text-primary hover:bg-surface-hover transition-colors"
-        >
-          Saved passwords
-          <span className="text-text-tertiary">›</span>
-        </button>
-        <div className="h-2" />
+        </>
+      ),
+    },
+    {
+      id: 'site-settings',
+      cat: 'privacy',
+      title: 'Site settings',
+      keywords: 'permissions zoom camera microphone location per site',
+      body: (
+        <>
         <button
           onClick={() => setSubPage('permissions')}
           className="w-full flex items-center justify-between h-10 px-3 rounded-lg bg-surface-elevated border border-border/60 text-[13px] text-text-primary hover:bg-surface-hover transition-colors"
         >
-          Site settings (permissions, zoom, blocking)
+          Permissions, zoom and blocking, site by site
           <span className="text-text-tertiary">›</span>
         </button>
-      </Section>
-
-      <Section title="Extensions">
+        </>
+      ),
+    },
+    {
+      id: 'vpn',
+      cat: 'network',
+      title: 'VPN',
+      keywords: 'vpn proxy tunnel socks5 kill switch ip',
+      body: (
+        <>
+        <VpnSettings />
+        </>
+      ),
+    },
+    {
+      id: 'dns',
+      cat: 'network',
+      title: 'Secure DNS',
+      keywords: 'dns over https doh',
+      body: (
+        <>
+<div className="rounded-lg bg-surface-elevated border border-border/60 p-3 space-y-2">
+          <div className="text-[13px] text-text-primary">Secure DNS (DNS-over-HTTPS)</div>
+          <div className="flex gap-2">
+            <select
+              aria-label="Secure DNS mode"
+              value={settings.dohMode}
+              onChange={(e) => set('dohMode', e.target.value as typeof settings.dohMode)}
+              className="h-8 flex-1 rounded-md bg-surface border border-border/60 text-[12px] text-text-primary px-2"
+            >
+              <option value="off">Off — use my operating system's DNS</option>
+              <option value="automatic">Automatic — try secure DNS, fall back if it fails</option>
+              <option value="secure">Always — never fall back (sites won't load if blocked)</option>
+            </select>
+            <select
+              aria-label="Secure DNS provider"
+              value={settings.dohProvider}
+              disabled={settings.dohMode === 'off'}
+              onChange={(e) => set('dohProvider', e.target.value as typeof settings.dohProvider)}
+              className="h-8 w-36 rounded-md bg-surface border border-border/60 text-[12px] text-text-primary px-2 disabled:opacity-50"
+            >
+              {Object.entries(DOH_PROVIDERS).map(([id, p]) => (
+                <option key={id} value={id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-[12px] text-text-tertiary">
+            When on, the website names you visit are sent encrypted to the provider you choose, instead of to your
+            ISP's DNS. DASH never turns this on by itself.
+          </p>
+        </div>
+        </>
+      ),
+    },
+    {
+      id: 'passwords',
+      cat: 'passwords',
+      title: 'Saved passwords',
+      keywords: 'password manager generate import csv chrome edge',
+      body: (
+        <>
+        <button
+          onClick={() => setSubPage('passwords')}
+          className="w-full flex items-center justify-between h-10 px-3 rounded-lg bg-surface-elevated border border-border/60 text-[13px] text-text-primary hover:bg-surface-hover transition-colors"
+        >
+          Saved passwords, generator and CSV import
+          <span className="text-text-tertiary">›</span>
+        </button>
+        </>
+      ),
+    },
+    {
+      id: 'display',
+      cat: 'access',
+      title: 'Display and input',
+      keywords: 'accessibility high contrast reduce motion animation focus outline keyboard zoom text size larger',
+      body: (
+        <>
+          <div className="space-y-2">
+            <ToggleRow label="High contrast (DASH's own screens)" checked={settings.highContrast} onChange={() => set('highContrast', !settings.highContrast)} />
+            <ToggleRow label="Reduce motion" checked={settings.reduceMotion} onChange={() => set('reduceMotion', !settings.reduceMotion)} />
+            <ToggleRow label="Always show keyboard focus" checked={settings.alwaysShowFocus} onChange={() => set('alwaysShowFocus', !settings.alwaysShowFocus)} />
+          </div>
+          <p className="mt-1.5 text-[12px] text-text-tertiary">
+            DASH also follows your system's "reduce motion" setting. High contrast changes DASH's own screens only; websites keep their own colours.
+          </p>
+          <div className="mt-3 rounded-lg bg-surface-elevated border border-border/60 p-3 flex items-center gap-3">
+            <div className="flex-1">
+              <div className="text-[13px] text-text-primary">Default page zoom</div>
+              <div className="text-[12px] text-text-tertiary">Pages open at this size. A zoom you set for a site is remembered and wins.</div>
+            </div>
+            <select
+              aria-label="Default page zoom"
+              value={settings.defaultPageZoom}
+              onChange={(e) => set('defaultPageZoom', Number(e.target.value))}
+              className="h-8 rounded-md bg-surface border border-border/60 text-[12px] text-text-primary px-2"
+            >
+              {[100, 110, 125, 150, 175, 200, 250, 300].map((z) => (
+                <option key={z} value={z}>{z}%</option>
+              ))}
+            </select>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'spell',
+      cat: 'access',
+      title: 'Spell check',
+      keywords: 'spelling language dictionary',
+      body: (
+        <>
+<ToggleRow
+          label="Check spelling in text boxes"
+          checked={settings.spellCheckEnabled}
+          onChange={() => set('spellCheckEnabled', !settings.spellCheckEnabled)}
+        />
+        <SpellCheckSettings enabled={settings.spellCheckEnabled} languages={settings.spellCheckLanguages} set={set} />
+        </>
+      ),
+    },
+    {
+      id: 'performance',
+      cat: 'performance',
+      title: 'Sleeping tabs',
+      keywords: 'memory sleep never sleep tabs',
+      body: (
+        <>
+        <ToggleRow
+          label="Sleep inactive tabs"
+          checked={settings.sleepingTabsEnabled}
+          onChange={() => set('sleepingTabsEnabled', !settings.sleepingTabsEnabled)}
+        />
+        <SiteListField
+          label="Never sleep these sites (one per line)"
+          placeholder={'music.youtube.com\nmeet.google.com'}
+          value={settings.neverSleepHosts}
+          onSave={(v) => set('neverSleepHosts', v)}
+        />
+        <SleepStats />
+        </>
+      ),
+    },
+    {
+      id: 'extensions',
+      cat: 'extensions',
+      title: 'Extensions',
+      keywords: 'add-ons extension manager',
+      body: (
+        <>
         <button
           onClick={() => setSubPage('extensions')}
           className="w-full flex items-center justify-between h-10 px-3 rounded-lg bg-surface-elevated border border-border/60 text-[13px] text-text-primary hover:bg-surface-hover transition-colors"
@@ -363,9 +580,16 @@ export function SettingsPage() {
           Manage extensions
           <span className="text-text-tertiary">›</span>
         </button>
-      </Section>
-
-      <Section title="Bookmarks">
+        </>
+      ),
+    },
+    {
+      id: 'bookmarks',
+      cat: 'data',
+      title: 'Bookmarks',
+      keywords: 'export import html',
+      body: (
+        <>
         <div className="flex gap-2">
           <button
             onClick={() => window.dash.bookmarks.export()}
@@ -380,18 +604,97 @@ export function SettingsPage() {
             Import…
           </button>
         </div>
-      </Section>
+        </>
+      ),
+    },
+    { id: 'backup', cat: 'data', title: 'Encrypted backup', keywords: 'backup restore sync passphrase encrypted export import passwords', body: <BackupSettings /> },
+    { id: 'import-browser', cat: 'data', title: 'Import from another browser', keywords: 'chrome edge firefox brave history bookmarks', body: <ImportSection />, bare: true },
+  ];
 
-      <ImportSection />
+  const q = query.trim().toLowerCase();
+  const visibleSections = q
+    ? sections.filter((s) => `${s.title} ${s.keywords}`.toLowerCase().includes(q))
+    : sections.filter((s) => s.cat === category);
 
-      <button
-        onClick={() => {
-          if (confirm('Reset all settings to defaults?')) reset();
-        }}
-        className="w-full h-9 rounded-lg text-[13px] text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors border border-border/60"
-      >
-        Reset to defaults
-      </button>
+  return (
+    <div className="max-w-5xl mx-auto py-8 px-6">
+      <div className="flex items-center gap-3 mb-6">
+        <Logo size={34} className="text-text-primary" />
+        <div className="flex-1">
+          <h1 className="text-xl font-semibold text-text-primary leading-tight">Settings</h1>
+          <div className="text-[12px] text-text-tertiary">DASH · Privacy First. Built for You.</div>
+        </div>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search settings"
+          aria-label="Search settings"
+          className="w-56 h-9 px-3 rounded-lg bg-surface-elevated border border-border/60 outline-none text-[13px] text-text-primary placeholder:text-text-tertiary focus:border-accent/60"
+        />
+      </div>
+
+      <div className="flex gap-8 items-start flex-col sm:flex-row">
+        <nav aria-label="Settings categories" className="sm:w-52 shrink-0 sm:sticky sm:top-6 flex sm:flex-col gap-1 flex-wrap w-full">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                setQuery('');
+                setCategory(c.id);
+                try {
+                  localStorage.setItem('dash-settings-category', c.id);
+                } catch {
+                  /* remembering the tab is optional */
+                }
+              }}
+              aria-current={!q && category === c.id ? 'page' : undefined}
+              className={`text-left h-9 px-3 rounded-lg text-[13px] transition-colors flex items-center gap-2.5 ${
+                !q && category === c.id ? 'bg-accent/15 text-accent' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
+              }`}
+            >
+              <span aria-hidden className="w-4 text-center">{c.icon}</span>
+              {c.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="flex-1 min-w-0 max-w-3xl w-full space-y-8">
+          {q && (
+            <div className="text-[12px] text-text-tertiary">
+              {visibleSections.length === 0 ? `No settings match "${query}".` : `${visibleSections.length} setting${visibleSections.length === 1 ? '' : 's'} matching "${query}"`}
+            </div>
+          )}
+          {!q && (
+            <h2 className="text-[17px] font-semibold text-text-primary -mb-3">{CATEGORIES.find((c) => c.id === category)?.label}</h2>
+          )}
+          {visibleSections.map((s) =>
+            s.bare ? (
+              <div key={s.id}>{s.body}</div>
+            ) : (
+              <Section key={s.id} title={s.title}>
+                {s.body}
+              </Section>
+            )
+          )}
+          {!q && category === 'about' && (
+            <>
+              <div className="rounded-lg bg-surface-elevated border border-border/60 p-4 text-[13px] text-text-secondary space-y-1.5">
+                <div className="text-text-primary font-medium">DASH · Privacy First. Built for You.</div>
+                <div>No telemetry and no accounts. Your history, bookmarks, passwords and settings are stored only on this computer.</div>
+                <div>Crash and startup details are written to a local log file; nothing is sent anywhere.</div>
+              </div>
+              <button
+                onClick={() => {
+                  if (confirm('Reset all settings to defaults?')) reset();
+                }}
+                className="w-full h-9 rounded-lg text-[13px] text-text-tertiary hover:text-text-primary hover:bg-surface-hover transition-colors border border-border/60"
+              >
+                Reset all settings to defaults
+              </button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -414,8 +717,8 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
       <span className="text-[13px] text-text-primary">{label}</span>
       <span className={`h-5 w-9 rounded-full relative transition-colors ${checked ? 'bg-accent' : 'bg-border'}`}>
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-            checked ? 'translate-x-4' : 'translate-x-0.5'
+          className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+            checked ? 'translate-x-[18px]' : 'translate-x-0.5'
           }`}
         />
       </span>
@@ -471,7 +774,7 @@ function ImportSection() {
       <div className="rounded-lg bg-surface-elevated border border-border/60 p-3 space-y-3">
         <p className="text-[12px] text-text-tertiary">
           Reads Chrome, Edge, Brave, Chromium and Firefox profiles on this computer. Nothing leaves your device.
-          Passwords are not imported — they are encrypted with the other browser's keys.
+          Passwords are not read from the other browser (they are encrypted with its keys); use Import CSV under Passwords instead.
         </p>
         <button
           onClick={() => void scan()}

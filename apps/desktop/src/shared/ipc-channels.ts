@@ -92,6 +92,7 @@ export const IPC = {
   TAB_REORDER: 'tab:reorder',
 
   PAGE_PRINT: 'page:print',
+  PAGE_PRINT_PREVIEW: 'page:print-preview',
   PAGE_SAVE: 'page:save',
   PAGE_SAVE_PDF: 'page:save-pdf',
   VPN_GET_STATE: 'vpn:get-state',
@@ -102,6 +103,7 @@ export const IPC = {
   VPN_CHECK_IP: 'vpn:check-ip',
   VPN_STATE_CHANGED: 'vpn:state-changed',
   TABS_SLEEP_STATS: 'tabs:sleep-stats',
+  SPELLCHECK_LANGUAGES: 'spellcheck:languages',
   SITE_INFO: 'site:info',
   SITE_SET_PROTECTION: 'site:set-protection',
   SITE_CLEAR_DATA: 'site:clear-data',
@@ -110,6 +112,8 @@ export const IPC = {
   DEVTOOLS_TOGGLE: 'devtools:toggle',
   PAGE_READER: 'page:reader',
 
+  BACKUP_EXPORT: 'backup:export',
+  BACKUP_IMPORT: 'backup:import',
   BOOKMARKS_EXPORT: 'bookmarks:export',
   BOOKMARKS_IMPORT: 'bookmarks:import',
   BOOKMARK_SET_FOLDER: 'bookmark:set-folder',
@@ -121,6 +125,7 @@ export const IPC = {
   SUGGESTIONS_QUERY: 'suggestions:query',
 
   WINDOW_NEW: 'window:new',
+  WINDOW_MOVE_TAB: 'window:move-tab',
   OVERLAY_PUSH: 'overlay:push',
   OVERLAY_POP: 'overlay:pop',
   SHORTCUT_KEY: 'shortcut:key', // main -> renderer: key combo pressed while a web page had focus

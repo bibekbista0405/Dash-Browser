@@ -27,11 +27,12 @@ import { IPC, type DashSettings, parseHostList } from '../shared/ipc-channels';
 import { clearSiteDataExcept } from './services/exit-cleanup';
 import { getDatabase } from './db/database';
 import { checkForUpdatesInBackground } from './services/updater';
+import { applySpellcheck } from './services/spellcheck';
 import { appLog, logPath } from './services/app-log';
 import { readFlags, updateFlags } from './services/app-flags';
 import { setRecoverable } from './services/session-recovery';
 import { installCrashHandlers } from './services/crash-handler';
-import { takeDatabaseRecoveryNote } from './db/database';
+import { takeDatabaseRecoveryNote, type SessionLayout } from './db/database';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env.VITE_DEV_SERVER_URL;
@@ -147,6 +148,7 @@ app.whenReady().then(async () => {
   // VPN (proxy tunnel). Off unless the user turned on "connect on startup"; credentials never leave this process.
   const vpn = (vpnRef = new VpnManager((state) => broadcast(IPC.VPN_STATE_CHANGED, state), writeStartupLog));
   vpn.addSession(session.defaultSession);
+  applySpellcheck(session.defaultSession, sharedSettings);
   app.on('login', (event, _wc, _details, authInfo, callback) => {
     const creds = vpn.handleLogin(authInfo);
     if (creds) {
@@ -223,7 +225,7 @@ app.whenReady().then(async () => {
       const perWindowUrls = getAllWindowContexts().map(({ tabManager }) => tabManager.getRestorableUrls());
       if (exitCleanupDone) return;
       try {
-        getDatabase().saveSessionTabs(perWindowUrls);
+        getDatabase().saveSessionTabs(perWindowUrls, getAllWindowContexts().map(({ tabManager }) => tabManager.getRestorableLayout()));
       } catch (err) {
         appLog(`Could not save session: ${String(err)}`);
       }
@@ -241,6 +243,11 @@ app.whenReady().then(async () => {
       sharedSettings = updated;
       nativeTheme.themeSource = updated.theme;
       applyDnsSettings(updated);
+      applySpellcheck(session.defaultSession, updated);
+      for (const { tabManager } of getAllWindowContexts()) applySpellcheck(tabManager.getPrivateSession(), updated);
+      for (const { tabManager } of getAllWindowContexts()) tabManager.applyThemeBackground();
+      // Layout depends on settings (bookmarks bar, vertical tabs); re-run it now that the cached settings are current.
+      for (const { tabManager } of getAllWindowContexts()) tabManager.layoutActiveView();
       if (process.platform !== 'darwin') {
         for (const { win } of getAllWindowContexts()) {
           try {
@@ -254,14 +261,15 @@ app.whenReady().then(async () => {
       broadcast(IPC.SETTINGS_STATE_CHANGED, updated);
     },
     onBookmarksChanged: () => broadcast(IPC.BOOKMARKS_CHANGED, null),
-    createWindow: () => createWindow(),
+    createWindow: (urls, at) => createWindow(urls, undefined, at),
     respondToLoginSavePrompt,
   });
 
   // ---- Per-window creation ----
   /** `initialUrls`, when provided, is only used for the tabs it lists — never triggers a further restore lookup. */
-  function createWindow(initialUrls?: string[]): void {
+  function createWindow(initialUrls?: string[], layout?: SessionLayout, at?: { x: number; y: number }): void {
     const win = new BrowserWindow({
+      ...(at ? { x: Math.round(at.x), y: Math.round(at.y) } : {}),
       width: 1280,
       height: 800,
       minWidth: 760,
@@ -351,11 +359,13 @@ app.whenReady().then(async () => {
     );
 
     vpn.addSession(tabManager.getPrivateSession());
+    applySpellcheck(tabManager.getPrivateSession(), sharedSettings);
     registerWindowContext({ win, tabManager });
 
     win.webContents.once('did-finish-load', () => {
       if (initialUrls && initialUrls.length > 0) {
-        for (const url of initialUrls) tabManager.createTab(url);
+        const ids = initialUrls.map((url) => tabManager.createTab(url).id);
+        if (layout) tabManager.applyRestoredLayout(ids, layout);
       } else {
         tabManager.createTab();
       }
@@ -371,9 +381,9 @@ app.whenReady().then(async () => {
 
   // ---- Startup: restore every saved window, or just one fresh New Tab Page ----
   if (sharedSettings.startupBehavior === 'restore') {
-    const savedWindows = getDatabase().getSessionTabs();
+    const savedWindows = getDatabase().getSession();
     if (savedWindows.length > 0) {
-      for (const urls of savedWindows) createWindow(urls);
+      for (const w of savedWindows) createWindow(w.urls, w.layout);
     } else {
       createWindow();
     }

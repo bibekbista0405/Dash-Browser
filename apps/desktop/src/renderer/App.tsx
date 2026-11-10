@@ -1,3 +1,4 @@
+import { VERTICAL_TABS_WIDTH, VERTICAL_TABS_WIDTH_COLLAPSED } from '../shared/ipc-channels';
 import { useEffect, useRef, useState } from 'react';
 import { TabStrip } from './components/TabStrip';
 import { AddressBar } from './components/AddressBar';
@@ -14,6 +15,7 @@ import { useDownloadsStore } from './store/downloads-store';
 import { useSettingsStore } from './store/settings-store';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppCustomCss } from './hooks/useAppCustomCss';
+import { useAccessibility } from './hooks/useAccessibility';
 import { useTheme } from './hooks/useTheme';
 
 const INTERNAL_PAGE_URLS = {
@@ -43,6 +45,7 @@ export default function App() {
 
   useTheme(settingsStore.settings.theme);
   useAppCustomCss(settingsStore.settings);
+  useAccessibility(settingsStore.settings);
 
   useEffect(() => {
     tabsStore.initialize();
@@ -96,6 +99,9 @@ export default function App() {
   });
 
   const activeTab = activeTabOf(tabsStore);
+  const sideWidth = settingsStore.settings.verticalTabs
+    ? settingsStore.settings.verticalTabsCollapsed ? VERTICAL_TABS_WIDTH_COLLAPSED : VERTICAL_TABS_WIDTH
+    : 0;
   const overlaySnapshot = useOverlayStore((s) => s.snapshot);
 
   return (
@@ -104,6 +110,7 @@ export default function App() {
         ${activeTab?.isPrivate ? 'bg-[#efe8fa] dark:bg-[#1a1025]' : 'bg-surface'}`}
     >
       <TabStrip />
+      <div style={{ paddingLeft: sideWidth }}>
       <AddressBar
         addressInputRef={addressInputRef}
         onOpenHistory={() => openOrFocusInternalPage(INTERNAL_PAGE_URLS.history)}
@@ -113,13 +120,14 @@ export default function App() {
         hasActiveDownload={downloadsStore.hasActive}
       />
       {settingsStore.settings.showBookmarksBar && <BookmarksBar />}
+      </div>
       {overlaySnapshot && (
         <img
           src={overlaySnapshot}
           alt=""
           draggable={false}
-          className="absolute left-0 right-0 bottom-0 w-full pointer-events-none select-none"
-          style={{ top: settingsStore.settings.showBookmarksBar ? 120 : 88, height: `calc(100% - ${settingsStore.settings.showBookmarksBar ? 120 : 88}px)` }}
+          className="absolute right-0 bottom-0 pointer-events-none select-none"
+          style={{ left: sideWidth, width: `calc(100% - ${sideWidth}px)`, top: settingsStore.settings.showBookmarksBar ? 120 : 88, height: `calc(100% - ${settingsStore.settings.showBookmarksBar ? 120 : 88}px)` }}
         />
       )}
       {/* Remaining space below is intentionally empty — the active

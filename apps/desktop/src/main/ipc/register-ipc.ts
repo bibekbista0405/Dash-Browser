@@ -10,6 +10,7 @@ import type { PermissionManager } from '../services/permission-manager';
 import type { VpnManager } from '../services/vpn-manager';
 import type { ExtensionManager } from '../services/extension-manager';
 import { BrowserImporter } from '../services/browser-import';
+import { BackupService } from '../services/backup';
 import { BookmarksIO } from '../services/bookmarks-io';
 import { getDatabase } from '../db/database';
 import { getContextForSender, getAllWindowContexts } from '../window-context';
@@ -45,7 +46,7 @@ export interface IpcServices {
   vpn: VpnManager;
   onSettingsChanged: (settings: DashSettings) => void;
   onBookmarksChanged: () => void;
-  createWindow: () => void;
+  createWindow: (urls?: string[], at?: { x: number; y: number }) => void;
   respondToLoginSavePrompt: (promptId: string, save: boolean) => void;
 }
 
@@ -244,6 +245,12 @@ export function registerIpcHandlers(services: IpcServices): void {
     tabManager.print(id);
   });
 
+  ipcMain.handle(IPC.PAGE_PRINT_PREVIEW, async (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    return tabManager.printPreview(id);
+  });
+
   ipcMain.handle(IPC.PAGE_SAVE, async (e, id: unknown) => {
     const { tabManager, win } = requireContext(e.sender);
     assertString(id, 'id');
@@ -350,9 +357,14 @@ export function registerIpcHandlers(services: IpcServices): void {
   ipcMain.handle(IPC.SITE_ZOOM_RESET, (e, host: unknown) => {
     requireContext(e.sender);
     assertString(host, 'host');
-    getDatabase().setSiteZoom(bareHost(host), 1);
+    getDatabase().removeSiteZoom(bareHost(host));
     // Open tabs on that site go back to 100% right away.
     for (const ctx of getAllWindowContexts()) ctx.tabManager.applySavedZoomToOpenTabs();
+  });
+
+  ipcMain.handle(IPC.SPELLCHECK_LANGUAGES, (e) => {
+    requireContext(e.sender);
+    return session.defaultSession.availableSpellCheckerLanguages;
   });
 
   ipcMain.handle(IPC.PAGE_READER, (e, id: unknown) => {
@@ -454,6 +466,24 @@ export function registerIpcHandlers(services: IpcServices): void {
   });
 
   const bookmarksIO = new BookmarksIO();
+  const backupService = new BackupService(passwordManager);
+
+  ipcMain.handle(IPC.BACKUP_EXPORT, async (e, passphrase: unknown, includePasswords: unknown) => {
+    const { win } = requireContext(e.sender);
+    if (typeof passphrase !== 'string' || passphrase.length > 512) throw new Error('DASH: invalid passphrase');
+    return backupService.export(win, passphrase, includePasswords === true);
+  });
+
+  ipcMain.handle(IPC.BACKUP_IMPORT, async (e, passphrase: unknown) => {
+    const { win } = requireContext(e.sender);
+    if (typeof passphrase !== 'string' || passphrase.length > 512) throw new Error('DASH: invalid passphrase');
+    const result = await backupService.import(win, passphrase);
+    if (result) {
+      onSettingsChanged(getDatabase().getAllSettings());
+      onBookmarksChanged();
+    }
+    return result;
+  });
 
   ipcMain.handle(IPC.BOOKMARKS_EXPORT, async (e) => {
     const { win } = requireContext(e.sender);
@@ -685,9 +715,28 @@ export function registerIpcHandlers(services: IpcServices): void {
       case 'fingerprintProtection':
       case 'clearHistoryOnExit':
       case 'clearSiteDataOnExit':
+      case 'spellCheckEnabled':
+      case 'highContrast':
+      case 'reduceMotion':
+      case 'alwaysShowFocus':
         if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
         getDatabase().setSetting(key as 'sendPrivacySignals', value === 'true');
         break;
+      case 'defaultPageZoom': {
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 100 || n > 300) throw new Error('DASH: page zoom must be between 100 and 300 percent');
+        getDatabase().setSetting('defaultPageZoom', n);
+        // Open tabs without their own saved zoom move to the new default right away.
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.applySavedZoomToOpenTabs();
+        break;
+      }
+      case 'spellCheckLanguages': {
+        // A short list of language tags such as "en-US,de"; anything else is refused.
+        const tags = value.split(',').map((t) => t.trim()).filter(Boolean);
+        if (tags.length > 6 || tags.some((t) => !/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(t))) throw new Error('DASH: invalid spell-check language list');
+        getDatabase().setSetting('spellCheckLanguages', tags.join(','));
+        break;
+      }
       case 'dohMode':
         if (!['off', 'automatic', 'secure'].includes(value)) throw new Error(`DASH: invalid DNS mode "${value}"`);
         getDatabase().setSetting('dohMode', value as DashSettings['dohMode']);
@@ -695,6 +744,12 @@ export function registerIpcHandlers(services: IpcServices): void {
       case 'dohProvider':
         if (!(value in DOH_PROVIDERS)) throw new Error(`DASH: unknown DNS provider "${value}"`);
         getDatabase().setSetting('dohProvider', value as DashSettings['dohProvider']);
+        break;
+      case 'verticalTabs':
+      case 'verticalTabsCollapsed':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting(key as 'verticalTabs' | 'verticalTabsCollapsed', value === 'true');
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.layoutActiveView();
         break;
       case 'showBookmarksBar':
         if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
@@ -886,6 +941,19 @@ export function registerIpcHandlers(services: IpcServices): void {
   ipcMain.handle(IPC.WINDOW_NEW, (e) => {
     requireContext(e.sender);
     createWindow();
+  });
+
+  // Move a tab into its own window. The page is re-opened there (it reloads: scroll position and form input are
+  // not carried over) and the original tab is closed. Private tabs and a window's only tab are refused.
+  ipcMain.handle(IPC.WINDOW_MOVE_TAB, (e, id: unknown, x: unknown, y: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    const url = tabManager.movableTabUrl(id);
+    if (!url) return false;
+    const at = typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y) ? { x: x - 200, y: Math.max(0, y - 20) } : undefined;
+    createWindow([url], at);
+    tabManager.closeTab(id);
+    return true;
   });
 
   ipcMain.handle(IPC.OVERLAY_PUSH, (e) => requireContext(e.sender).tabManager.pushOverlay());

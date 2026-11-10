@@ -85,6 +85,7 @@ export function ThemeCssEditor({ cssKey, enabledKey, enableLabel, maxLength, tem
         value={draft}
         onChange={(e) => setDraft(e.target.value.slice(0, maxLength))}
         spellCheck={false}
+        aria-label={cssKey === 'appCustomCss' ? 'Browser theme CSS' : 'Home page theme CSS'}
         rows={12}
         placeholder="/* Paste or write CSS here, or pick a template above */"
         className="w-full rounded-lg bg-surface-elevated border border-border/60 p-3 font-mono text-[12px] leading-5 text-text-primary outline-none focus:border-accent resize-y"

@@ -55,7 +55,7 @@ export function detectThemeId(customCss: string): string {
 
 /** Structural CSS every theme gets. Low specificity on purpose so any user theme can override it. */
 const BASE_CSS = `
-  :root { color-scheme: __SCHEME__; __VARS__ }
+  :root { color-scheme: light dark; __VARS__ }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: var(--bg); color: var(--fg); font-family: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif; }
   a { color: inherit; text-decoration: none; }
@@ -184,11 +184,12 @@ export function buildNewTabHtml(
     })
     .join('');
 
-  const vars = isDark
-    ? '--bg:#0b0d10;--fg:#f2f3f5;--card:#15181d;--line:#262b33;--muted:#a7adb8;--faint:#5c626d;--accent:#5b8cff;'
-    : '--bg:#ffffff;--fg:#14161a;--card:#f1f3f6;--line:#dfe3e8;--muted:#5a606b;--faint:#8a919c;--accent:#3b64dc;';
-  const baseCss = BASE_CSS.replace('__SCHEME__', isDark ? 'dark' : 'light')
-    .replace('__VARS__', vars)
+  // Both palettes ship in the page: the baked one is the default and prefers-color-scheme (which follows the
+  // app theme) swaps live, so an already-open New Tab follows a theme change without a reload or a flash.
+  const darkVars = '--bg:#0b0d10;--fg:#f2f3f5;--card:#15181d;--line:#262b33;--muted:#a7adb8;--faint:#5c626d;--accent:#5b8cff;';
+  const lightVars = '--bg:#ffffff;--fg:#14161a;--card:#f1f3f6;--line:#dfe3e8;--muted:#5a606b;--faint:#8a919c;--accent:#3b64dc;';
+  const vars = `${isDark ? darkVars : lightVars} } @media (prefers-color-scheme: ${isDark ? 'light' : 'dark'}) { :root { ${isDark ? lightVars : darkVars} }`;
+  const baseCss = BASE_CSS.replace('__VARS__', vars)
     .split('__LOGO__')
     .join(LOGO_MARK_DATA_URI);
 

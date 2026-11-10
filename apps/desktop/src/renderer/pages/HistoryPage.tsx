@@ -112,6 +112,7 @@ export function HistoryPage({ tabId }: { tabId: string }) {
                 <input
                   type="checkbox"
                   checked={selected.has(entry.id)}
+                  aria-label={`Select ${entry.title || entry.url}`}
                   onClick={(e) => e.stopPropagation()}
                   onChange={() => toggleSelect(entry.id)}
                   className="shrink-0"

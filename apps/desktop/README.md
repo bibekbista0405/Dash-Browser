@@ -964,3 +964,34 @@ Real app: reorder and drag-and-drop (bar and folder drop), nested folder menu, z
 
 ### Not verified
 Import CSV through the real file dialog (parsing and import logic are tested, the dialog is not), a real Chrome/Edge export file, a real OS keyring, Windows.
+
+## Milestone 31 — Tier 2 batch: session layout, resumable downloads, spell check
+
+### Tab groups and pinned tabs survive a restart
+With "Continue where you left off" the saved session now also keeps which tabs are pinned and which group each tab is in (group name, colour, collapsed). Private tabs are never saved. Limit: after a crash, the "Restore your tabs" banner restores the pages only, not groups or pins.
+
+### Downloads resume after a restart or crash
+- Each download stores what Chromium needs to continue it (address chain, ETag, last-modified).
+- Anything still running when DASH ended shows as **Interrupted** with a **Resume** button; Resume continues from the bytes already on disk into the same file and the same list entry.
+- Needs a server that supports byte ranges and still has the same file. If the file changed or the server refuses, the download stays Interrupted (remove it and download again).
+- Tested: killed DASH at 3.4 MB of 8 MB, restarted, resumed; finished at exactly 8,000,000 bytes, byte-identical to an uninterrupted download, one list entry.
+
+### Spell check (Settings → Privacy)
+On/off and a list of dictionary languages (up to 6), chosen from what this system's Chromium offers. Applies to normal and private tabs immediately. Chromium downloads a dictionary the first time it is used (Windows/Linux); macOS uses the system checker and ignores the list. Not verified here: actual underlining in a new language, because the sandbox cannot reach the dictionary download server.
+
+## Milestone 32 — Settings sections and accessibility
+
+### Settings is now organised in sections
+A left menu groups everything: **General** (search engine, homepage, startup, toolbar) · **Appearance & Themes** (colour mode, Browser Theme styler, Home Page Theme styler) · **Privacy & Security** (ad/tracker blocking, tracking protection, clear on exit, clear browsing data, privacy report, site settings) · **VPN & Network** (VPN, secure DNS) · **Passwords** · **Accessibility & Language** (display options, spell check) · **Performance** · **Extensions** · **Import & Export** · **About & Reset**. A **Search settings** box finds a setting in any section (try "dns", "cookies", "zoom"). The last section you used is remembered. On a narrow window the menu becomes a wrapped row above the content.
+
+### Accessibility (Settings → Accessibility & Language)
+- **High contrast** for DASH's own screens (pure black/white surfaces, strong borders, brighter accent). Websites keep their own colours.
+- **Reduce motion** turns off DASH's animations; the operating system's own "reduce motion" choice is always honoured too.
+- **Always show keyboard focus** draws a visible outline on whatever has focus, including text boxes. Buttons, links, menus and switches now always show a focus ring when reached by keyboard (there was none defined before).
+- **Default page zoom** (100–300%): pages open at this size; a zoom you set for a site is remembered and wins; "Reset zoom" returns to the default; private tabs use the default and never save site zoom.
+- **Contrast fix:** the dim text used for hints and labels measured 2.6:1 (dark) and 2.4:1 (light) against its background; both are now at least 4.6:1 (WCAG AA is 4.5:1).
+- **Screen-reader names:** a scripted check of the browser window and every Settings, History, Downloads and Bookmarks screen found 5 controls without a name (theme CSS boxes, site lists, history row checkboxes); all are labelled now and the check reports none.
+- Also fixed: the on/off switches' knob stuck out past the edge of the switch.
+
+### Not verified
+Real screen readers (NVDA, VoiceOver, Narrator); the check is automated and only looks for missing names. High contrast does not restyle the New Tab page or web pages. Windows.

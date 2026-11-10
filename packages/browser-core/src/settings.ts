@@ -23,6 +23,10 @@ export interface DashSettings {
   trackerBlockingEnabled: boolean;
   httpsOnlyMode: boolean;
   showBookmarksBar: boolean;
+  /** Tabs listed down the left side instead of across the top. */
+  verticalTabs: boolean;
+  /** Vertical tab list shrunk to favicons only. */
+  verticalTabsCollapsed: boolean;
   sendPrivacySignals: boolean;
   blockThirdPartyCookies: boolean;
   /** Remove known tracking parameters (utm_*, fbclid, gclid…) from links before loading. */
@@ -37,6 +41,18 @@ export interface DashSettings {
   neverSleepHosts: string;
   /** Sites where ad and tracker blocking is switched off (one per line). */
   blockingOffHosts: string;
+  /** Underline misspelled words in text boxes. */
+  spellCheckEnabled: boolean;
+  /** Stronger text, borders and focus outlines in DASH's own screens. */
+  highContrast: boolean;
+  /** Turns off DASH's own animations (the system "reduce motion" choice is always honoured too). */
+  reduceMotion: boolean;
+  /** Draw a visible outline on whatever has keyboard focus, everywhere in DASH. */
+  alwaysShowFocus: boolean;
+  /** Starting zoom for every page, in percent (100–300). A zoom you set for a site still wins. */
+  defaultPageZoom: number;
+  /** Dictionary languages, comma separated (e.g. "en-US,de"). Empty = the system language. */
+  spellCheckLanguages: string;
   /** Sites whose cookies/data survive "clear on exit" (one per line). */
   keepSiteDataHosts: string;
   dohMode: DohMode;
@@ -59,6 +75,8 @@ export const DEFAULT_SETTINGS: DashSettings = {
   trackerBlockingEnabled: true,
   httpsOnlyMode: false,
   showBookmarksBar: true,
+  verticalTabs: false,
+  verticalTabsCollapsed: false,
   sendPrivacySignals: true,
   blockThirdPartyCookies: false,
   stripTrackingParams: true,
@@ -67,6 +85,12 @@ export const DEFAULT_SETTINGS: DashSettings = {
   fingerprintProtection: true,
   neverSleepHosts: '',
   blockingOffHosts: '',
+  spellCheckEnabled: true,
+  highContrast: false,
+  reduceMotion: false,
+  alwaysShowFocus: false,
+  defaultPageZoom: 100,
+  spellCheckLanguages: '',
   keepSiteDataHosts: '',
   dohMode: 'off',
   dohProvider: 'cloudflare',
@@ -88,6 +112,10 @@ export const HOST_LIST_MAX_LENGTH = 4000;
 /** Height in px of the optional bookmarks bar under the address bar. */
 export const BOOKMARKS_BAR_HEIGHT = 32;
 
+/** Width in px of the vertical tab list (expanded / collapsed to icons). */
+export const VERTICAL_TABS_WIDTH = 240;
+export const VERTICAL_TABS_WIDTH_COLLAPSED = 52;
+
 /** Every key a platform's settings-set handler must accept and validate. */
 export const SETTINGS_KEYS = [
   'searchEngine',
@@ -99,6 +127,8 @@ export const SETTINGS_KEYS = [
   'trackerBlockingEnabled',
   'httpsOnlyMode',
   'showBookmarksBar',
+  'verticalTabs',
+  'verticalTabsCollapsed',
   'sendPrivacySignals',
   'blockThirdPartyCookies',
   'stripTrackingParams',
@@ -107,6 +137,12 @@ export const SETTINGS_KEYS = [
   'fingerprintProtection',
   'neverSleepHosts',
   'blockingOffHosts',
+  'spellCheckEnabled',
+  'highContrast',
+  'reduceMotion',
+  'alwaysShowFocus',
+  'defaultPageZoom',
+  'spellCheckLanguages',
   'keepSiteDataHosts',
   'dohMode',
   'dohProvider',

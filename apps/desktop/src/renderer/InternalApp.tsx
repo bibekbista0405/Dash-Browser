@@ -5,6 +5,7 @@ import { BookmarksPage } from './pages/BookmarksPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { Logo } from './components/Logo';
 import { useAppCustomCss } from './hooks/useAppCustomCss';
+import { useAccessibility } from './hooks/useAccessibility';
 import { useTheme } from './hooks/useTheme';
 import { useSettingsStore } from './store/settings-store';
 
@@ -45,6 +46,7 @@ export default function InternalApp() {
 
   useTheme(settingsStore.settings.theme);
   useAppCustomCss(settingsStore.settings);
+  useAccessibility(settingsStore.settings);
 
   useEffect(() => {
     settingsStore.load();

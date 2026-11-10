@@ -76,7 +76,7 @@ export function buildErrorPageDataUrl(failedUrl: string, code: number, errorName
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:">
 <title>${esc(copy.title)}</title>
 <style>
-:root{color-scheme:${isDark ? 'dark' : 'light'};--bg:${isDark ? '#0b0d10' : '#ffffff'};--fg:${isDark ? '#e8eaed' : '#14161a'};--muted:${isDark ? '#9aa0a8' : '#5a6068'};--line:${isDark ? '#23272d' : '#e3e6ea'};--card:${isDark ? '#14171b' : '#f5f6f8'};--accent:${isDark ? '#5b8cff' : '#3b64dc'}}
+:root{color-scheme:light dark;${isDark ? '--bg:#0b0d10;--fg:#e8eaed;--muted:#9aa0a8;--line:#23272d;--card:#14171b;--accent:#5b8cff' : '--bg:#ffffff;--fg:#14161a;--muted:#5a6068;--line:#e3e6ea;--card:#f5f6f8;--accent:#3b64dc'}}@media (prefers-color-scheme:${isDark ? 'light' : 'dark'}){:root{${isDark ? '--bg:#ffffff;--fg:#14161a;--muted:#5a6068;--line:#e3e6ea;--card:#f5f6f8;--accent:#3b64dc' : '--bg:#0b0d10;--fg:#e8eaed;--muted:#9aa0a8;--line:#23272d;--card:#14171b;--accent:#5b8cff'}}}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);font:14px/1.6 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:24px}
 main{width:min(520px,100%)}

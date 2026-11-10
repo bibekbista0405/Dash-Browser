@@ -55,6 +55,7 @@ const dashApi = {
     sleepStats: (): Promise<{ sleeping: number; freedMb: number }> => ipcRenderer.invoke(IPC.TABS_SLEEP_STATS),
     siteZoomList: (): Promise<{ host: string; factor: number }[]> => ipcRenderer.invoke(IPC.SITE_ZOOM_LIST),
     resetSiteZoom: (host: string): Promise<void> => ipcRenderer.invoke(IPC.SITE_ZOOM_RESET, host),
+    spellCheckLanguages: (): Promise<string[]> => ipcRenderer.invoke(IPC.SPELLCHECK_LANGUAGES),
     siteInfo: (id: string): Promise<SiteInfo | null> => ipcRenderer.invoke(IPC.SITE_INFO, id),
     setSiteProtection: (host: string, off: boolean): Promise<void> => ipcRenderer.invoke(IPC.SITE_SET_PROTECTION, host, off),
     clearSiteData: (id: string): Promise<number> => ipcRenderer.invoke(IPC.SITE_CLEAR_DATA, id),
@@ -76,6 +77,12 @@ const dashApi = {
     query: (term: string): Promise<HistoryEntry[]> => ipcRenderer.invoke(IPC.HISTORY_QUERY, term),
     delete: (id: number): Promise<void> => ipcRenderer.invoke(IPC.HISTORY_DELETE, id),
     clear: (): Promise<void> => ipcRenderer.invoke(IPC.HISTORY_CLEAR),
+  },
+  backup: {
+    export: (passphrase: string, includePasswords: boolean): Promise<{ items: number; passwords: number } | null> =>
+      ipcRenderer.invoke(IPC.BACKUP_EXPORT, passphrase, includePasswords),
+    import: (passphrase: string): Promise<{ counts: Record<string, number>; passwords: number; passwordsSkipped: string | null } | null> =>
+      ipcRenderer.invoke(IPC.BACKUP_IMPORT, passphrase),
   },
   bookmarks: {
     add: (url: string, title: string, faviconUrl?: string | null): Promise<BookmarkEntry> =>
@@ -201,6 +208,7 @@ const dashApi = {
   },
   page: {
     print: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PAGE_PRINT, id),
+    printPreview: (id: string): Promise<boolean> => ipcRenderer.invoke(IPC.PAGE_PRINT_PREVIEW, id),
     save: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PAGE_SAVE, id),
     savePdf: (id: string): Promise<void> => ipcRenderer.invoke(IPC.PAGE_SAVE_PDF, id),
     toggleReader: (id: string): Promise<'opened' | 'closed' | 'unreadable' | 'unsupported'> =>
@@ -233,6 +241,7 @@ const dashApi = {
   },
   windowControls: {
     new: (): Promise<void> => ipcRenderer.invoke(IPC.WINDOW_NEW),
+    moveTab: (id: string, x?: number, y?: number): Promise<boolean> => ipcRenderer.invoke(IPC.WINDOW_MOVE_TAB, id, x, y),
     minimize: (): Promise<void> => ipcRenderer.invoke(IPC.WINDOW_MINIMIZE),
     maximize: (): Promise<void> => ipcRenderer.invoke(IPC.WINDOW_MAXIMIZE),
     close: (): Promise<void> => ipcRenderer.invoke(IPC.WINDOW_CLOSE),

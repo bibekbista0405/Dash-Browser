@@ -21,12 +21,36 @@ import {
  * Everything lives on disk under the user's app-data directory.
  * Nothing here ever touches the network.
  */
+/** What Chromium needs to continue a download in a later run. */
+export interface DownloadResumeInfo {
+  urlChain: string[];
+  mimeType: string;
+  eTag: string;
+  lastModified: string;
+  startTime: number;
+}
+
+/** Which restored tab is pinned or in which group, aligned by index with the window's saved URLs. */
+export interface SessionLayout {
+  tabs: { pinned: boolean; group: number | null }[];
+  groups: { name: string; color: string; collapsed: boolean }[];
+}
+
 /** Set when a damaged data file was moved aside at start-up (the new path), so the UI can say so once. */
 let databaseRecoveryNote: string | null = null;
 export function takeDatabaseRecoveryNote(): string | null {
   const n = databaseRecoveryNote;
   databaseRecoveryNote = null;
   return n;
+}
+
+export interface BackupData {
+  settings: Record<string, string>;
+  bookmarks: { url: string; title: string; folder: string | null; createdAt: number }[];
+  siteZoom: { host: string; factor: number }[];
+  customShortcuts: { host: string; url: string; title: string }[];
+  hiddenSites: string[];
+  permissions: { origin: string; permission: string; decision: string }[];
 }
 
 class DashDatabase {
@@ -134,6 +158,15 @@ class DashDatabase {
         position INTEGER NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS session_groups (
+        window_index INTEGER NOT NULL,
+        idx INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL,
+        collapsed INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (window_index, idx)
+      );
+
       CREATE TABLE IF NOT EXISTS passwords (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         origin TEXT NOT NULL,
@@ -187,6 +220,15 @@ class DashDatabase {
     const sessionTabsColumns = this.db.prepare(`PRAGMA table_info(session_tabs)`).all() as { name: string }[];
     if (!sessionTabsColumns.some((c) => c.name === 'window_index')) {
       this.db.exec(`ALTER TABLE session_tabs ADD COLUMN window_index INTEGER NOT NULL DEFAULT 0`);
+    }
+    if (!sessionTabsColumns.some((c) => c.name === 'pinned')) {
+      this.db.exec(`ALTER TABLE session_tabs ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
+      this.db.exec(`ALTER TABLE session_tabs ADD COLUMN group_idx INTEGER`);
+    }
+
+    const downloadColumns = this.db.prepare(`PRAGMA table_info(downloads)`).all() as { name: string }[];
+    if (!downloadColumns.some((c) => c.name === 'resume_info')) {
+      this.db.exec(`ALTER TABLE downloads ADD COLUMN resume_info TEXT`);
     }
 
     const historyColumns = this.db.prepare(`PRAGMA table_info(history)`).all() as { name: string }[];
@@ -331,9 +373,9 @@ class DashDatabase {
     return row ? row.factor : null;
   }
 
-  /** A factor of 1 is the default, so it is stored as "no entry". */
-  setSiteZoom(host: string, factor: number): void {
-    if (Math.abs(factor - 1) < 0.001) {
+  /** A factor equal to the default is stored as "no entry", so changing the default later still applies. */
+  setSiteZoom(host: string, factor: number, defaultFactor = 1): void {
+    if (Math.abs(factor - defaultFactor) < 0.001) {
       this.db.prepare(`DELETE FROM site_zoom WHERE host = ?`).run(host);
       return;
     }
@@ -342,8 +384,59 @@ class DashDatabase {
       .run(host, factor);
   }
 
+  removeSiteZoom(host: string): void {
+    this.db.prepare(`DELETE FROM site_zoom WHERE host = ?`).run(host);
+  }
+
   listSiteZoom(): { host: string; factor: number }[] {
     return this.db.prepare(`SELECT host, factor FROM site_zoom ORDER BY host ASC`).all() as { host: string; factor: number }[];
+  }
+
+  /** Everything a backup file carries besides passwords (those are handled by the backup service). */
+  exportBackupData(): BackupData {
+    const rows = <T>(sql: string) => this.db.prepare(sql).all() as T[];
+    const settings: Record<string, string> = {};
+    for (const r of rows<{ key: string; value: string }>(`SELECT key, value FROM settings`)) settings[r.key] = r.value;
+    return {
+      settings,
+      bookmarks: rows<{ url: string; title: string; folder: string | null; created_at: number }>(
+        `SELECT url, title, folder, created_at FROM bookmarks ORDER BY position ASC, id ASC`
+      ).map((b) => ({ url: b.url, title: b.title, folder: b.folder, createdAt: b.created_at })),
+      siteZoom: this.listSiteZoom(),
+      customShortcuts: rows<{ host: string; url: string; title: string }>(`SELECT host, url, title FROM custom_shortcuts`),
+      hiddenSites: rows<{ host: string }>(`SELECT host FROM hidden_sites`).map((r) => r.host),
+      permissions: rows<{ origin: string; permission: string; decision: string }>(`SELECT origin, permission, decision FROM permissions`),
+    };
+  }
+
+  /**
+   * Merges a backup into this profile. Settings listed in the file replace the current values (only keys DASH knows);
+   * everything else is added without removing or duplicating what is already here.
+   */
+  importBackupData(data: BackupData): Record<string, number> {
+    const known = new Set(Object.keys(DEFAULT_SETTINGS));
+    const counts = { settings: 0, bookmarks: 0, siteZoom: 0, shortcuts: 0, hiddenSites: 0, permissions: 0 };
+    const str = (v: unknown, max = 2048): v is string => typeof v === 'string' && v.length <= max;
+    this.db.transaction(() => {
+      const setS = this.db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`);
+      for (const [k, v] of Object.entries(data.settings ?? {})) {
+        if (known.has(k) && str(v, 20000)) {
+          setS.run(k, v);
+          counts.settings++;
+        }
+      }
+      const marks = (data.bookmarks ?? []).filter((b) => str(b?.url) && str(b?.title, 1000) && (b.folder === null || str(b.folder, 200)) && Number.isFinite(b.createdAt));
+      counts.bookmarks = this.importBookmarks(marks.map((b) => ({ url: b.url, title: b.title, folder: b.folder, addedAt: b.createdAt })));
+      const zoom = this.db.prepare(`INSERT OR REPLACE INTO site_zoom (host, factor) VALUES (?, ?)`);
+      for (const z of data.siteZoom ?? []) if (str(z?.host, 255) && Number.isFinite(z.factor) && z.factor >= 0.25 && z.factor <= 5) { zoom.run(z.host, z.factor); counts.siteZoom++; }
+      const sc = this.db.prepare(`INSERT OR REPLACE INTO custom_shortcuts (host, url, title, created_at) VALUES (?, ?, ?, ?)`);
+      for (const c of data.customShortcuts ?? []) if (str(c?.host, 255) && str(c.url) && /^https?:\/\//i.test(c.url) && str(c.title, 200)) { sc.run(c.host, c.url, c.title, Date.now()); counts.shortcuts++; }
+      const hs = this.db.prepare(`INSERT OR REPLACE INTO hidden_sites (host, hidden_at) VALUES (?, ?)`);
+      for (const h of data.hiddenSites ?? []) if (str(h, 255)) { hs.run(h, Date.now()); counts.hiddenSites++; }
+      const pm = this.db.prepare(`INSERT OR REPLACE INTO permissions (origin, permission, decision, updated_at) VALUES (?, ?, ?, ?)`);
+      for (const p of data.permissions ?? []) if (str(p?.origin, 512) && str(p.permission, 64) && (p.decision === 'granted' || p.decision === 'denied')) { pm.run(p.origin, p.permission, p.decision, Date.now()); counts.permissions++; }
+    })();
+    return counts;
   }
 
   removeBookmark(id: number): void {
@@ -370,6 +463,30 @@ class DashDatabase {
     return Number(info.lastInsertRowid);
   }
 
+  setDownloadResumeInfo(id: number, info: DownloadResumeInfo): void {
+    this.db.prepare(`UPDATE downloads SET resume_info = ? WHERE id = ?`).run(JSON.stringify(info), id);
+  }
+
+  /** The saved details needed to continue a download after a restart, with the row's file and size. */
+  getDownloadForResume(id: number): { state: string; savePath: string; totalBytes: number; info: DownloadResumeInfo | null } | null {
+    const row = this.db
+      .prepare(`SELECT state, save_path as savePath, total_bytes as totalBytes, resume_info as resumeInfo FROM downloads WHERE id = ?`)
+      .get(id) as { state: string; savePath: string; totalBytes: number; resumeInfo: string | null } | undefined;
+    if (!row) return null;
+    let info: DownloadResumeInfo | null = null;
+    try {
+      info = row.resumeInfo ? (JSON.parse(row.resumeInfo) as DownloadResumeInfo) : null;
+    } catch {
+      info = null;
+    }
+    return { state: row.state, savePath: row.savePath, totalBytes: row.totalBytes, info };
+  }
+
+  /** Anything still marked as running belongs to a previous run that ended: it is interrupted, not progressing. */
+  markUnfinishedDownloadsInterrupted(): void {
+    this.db.prepare(`UPDATE downloads SET state = 'interrupted' WHERE state IN ('progressing', 'paused')`).run();
+  }
+
   updateDownloadProgress(id: number, receivedBytes: number, totalBytes: number): void {
     this.db
       .prepare(`UPDATE downloads SET received_bytes = ?, total_bytes = ? WHERE id = ?`)
@@ -384,14 +501,15 @@ class DashDatabase {
     const rows = this.db
       .prepare(
         `SELECT id, filename, url, save_path as savePath, total_bytes as totalBytes,
-                received_bytes as receivedBytes, state, started_at as startedAt
+                received_bytes as receivedBytes, state, started_at as startedAt,
+                resume_info IS NOT NULL as resumable
          FROM downloads ORDER BY started_at DESC LIMIT ?`
       )
-      .all(limit) as Omit<DownloadEntry, 'canPause' | 'canResume'>[];
-    return rows.map((r) => ({
+      .all(limit) as (Omit<DownloadEntry, 'canPause' | 'canResume'> & { resumable: number })[];
+    return rows.map(({ resumable, ...r }) => ({
       ...r,
       canPause: r.state === 'progressing',
-      canResume: r.state === 'paused',
+      canResume: r.state === 'paused' || (r.state === 'interrupted' && resumable === 1 && r.totalBytes > 0),
     }));
   }
 
@@ -423,6 +541,12 @@ class DashDatabase {
       fingerprintProtection: stored.fingerprintProtection ? stored.fingerprintProtection === 'true' : DEFAULT_SETTINGS.fingerprintProtection,
       neverSleepHosts: stored.neverSleepHosts ?? DEFAULT_SETTINGS.neverSleepHosts,
       blockingOffHosts: stored.blockingOffHosts ?? DEFAULT_SETTINGS.blockingOffHosts,
+      highContrast: stored.highContrast ? stored.highContrast === 'true' : DEFAULT_SETTINGS.highContrast,
+      reduceMotion: stored.reduceMotion ? stored.reduceMotion === 'true' : DEFAULT_SETTINGS.reduceMotion,
+      alwaysShowFocus: stored.alwaysShowFocus ? stored.alwaysShowFocus === 'true' : DEFAULT_SETTINGS.alwaysShowFocus,
+      defaultPageZoom: Number.isFinite(Number(stored.defaultPageZoom)) && Number(stored.defaultPageZoom) >= 100 && Number(stored.defaultPageZoom) <= 300 ? Number(stored.defaultPageZoom) : DEFAULT_SETTINGS.defaultPageZoom,
+      spellCheckEnabled: stored.spellCheckEnabled ? stored.spellCheckEnabled === 'true' : DEFAULT_SETTINGS.spellCheckEnabled,
+      spellCheckLanguages: stored.spellCheckLanguages ?? DEFAULT_SETTINGS.spellCheckLanguages,
       keepSiteDataHosts: stored.keepSiteDataHosts ?? DEFAULT_SETTINGS.keepSiteDataHosts,
       dohMode: (stored.dohMode as DashSettings['dohMode']) ?? DEFAULT_SETTINGS.dohMode,
       dohProvider: (stored.dohProvider as DashSettings['dohProvider']) ?? DEFAULT_SETTINGS.dohProvider,
@@ -430,6 +554,8 @@ class DashDatabase {
       newTabCustomCssEnabled: stored.newTabCustomCssEnabled ? stored.newTabCustomCssEnabled === 'true' : DEFAULT_SETTINGS.newTabCustomCssEnabled,
       appCustomCss: stored.appCustomCss ?? DEFAULT_SETTINGS.appCustomCss,
       appCustomCssEnabled: stored.appCustomCssEnabled ? stored.appCustomCssEnabled === 'true' : DEFAULT_SETTINGS.appCustomCssEnabled,
+      verticalTabs: stored.verticalTabs === 'true',
+      verticalTabsCollapsed: stored.verticalTabsCollapsed === 'true',
       showBookmarksBar: stored.showBookmarksBar ? stored.showBookmarksBar === 'true' : DEFAULT_SETTINGS.showBookmarksBar,
       httpsOnlyMode: stored.httpsOnlyMode ? stored.httpsOnlyMode === 'true' : DEFAULT_SETTINGS.httpsOnlyMode,
     };
@@ -447,12 +573,23 @@ class DashDatabase {
 
   // ---- Session restore ----
   /** Replaces the entire saved session in one transaction — one array of URLs per window, in window order. */
-  saveSessionTabs(windows: string[][]): void {
+  saveSessionTabs(windows: string[][], layouts: SessionLayout[] = []): void {
     const tx = this.db.transaction((data: string[][]) => {
       this.db.prepare(`DELETE FROM session_tabs`).run();
-      const insert = this.db.prepare(`INSERT INTO session_tabs (window_index, url, position) VALUES (?, ?, ?)`);
+      this.db.prepare(`DELETE FROM session_groups`).run();
+      const insert = this.db.prepare(
+        `INSERT INTO session_tabs (window_index, url, position, pinned, group_idx) VALUES (?, ?, ?, ?, ?)`
+      );
+      const insertGroup = this.db.prepare(
+        `INSERT INTO session_groups (window_index, idx, name, color, collapsed) VALUES (?, ?, ?, ?, ?)`
+      );
       data.forEach((urls, windowIndex) => {
-        urls.forEach((url, position) => insert.run(windowIndex, url, position));
+        const layout = layouts[windowIndex];
+        urls.forEach((url, position) => {
+          const t = layout?.tabs[position];
+          insert.run(windowIndex, url, position, t?.pinned ? 1 : 0, t?.group ?? null);
+        });
+        layout?.groups.forEach((g, i) => insertGroup.run(windowIndex, i, g.name, g.color, g.collapsed ? 1 : 0));
       });
     });
     tx(windows);
@@ -460,19 +597,30 @@ class DashDatabase {
 
   /** Returns one array of URLs per window, ordered by window_index then position. */
   getSessionTabs(): string[][] {
+    return this.getSession().map((w) => w.urls);
+  }
+
+  /** URLs plus pin and group layout for each saved window (empty windows dropped). */
+  getSession(): { urls: string[]; layout: SessionLayout }[] {
     const rows = this.db
-      .prepare(`SELECT window_index as windowIndex, url FROM session_tabs ORDER BY window_index ASC, position ASC`)
-      .all() as { windowIndex: number; url: string }[];
-    const windows: string[][] = [];
+      .prepare(`SELECT window_index as windowIndex, url, pinned, group_idx as groupIdx FROM session_tabs ORDER BY window_index ASC, position ASC`)
+      .all() as { windowIndex: number; url: string; pinned: number; groupIdx: number | null }[];
+    const groupRows = this.db
+      .prepare(`SELECT window_index as windowIndex, name, color, collapsed FROM session_groups ORDER BY window_index ASC, idx ASC`)
+      .all() as { windowIndex: number; name: string; color: string; collapsed: number }[];
+    const windows: { urls: string[]; layout: SessionLayout }[] = [];
     for (const row of rows) {
-      if (!windows[row.windowIndex]) windows[row.windowIndex] = [];
-      windows[row.windowIndex].push(row.url);
+      const w = (windows[row.windowIndex] ??= { urls: [], layout: { tabs: [], groups: [] } });
+      w.urls.push(row.url);
+      w.layout.tabs.push({ pinned: row.pinned === 1, group: row.groupIdx });
     }
-    return windows.filter((w) => w && w.length > 0);
+    for (const g of groupRows) windows[g.windowIndex]?.layout.groups.push({ name: g.name, color: g.color, collapsed: g.collapsed === 1 });
+    return windows.filter((w) => w && w.urls.length > 0);
   }
 
   clearSessionTabs(): void {
     this.db.prepare(`DELETE FROM session_tabs`).run();
+    this.db.prepare(`DELETE FROM session_groups`).run();
   }
 
   // ---- Blocking stats ----

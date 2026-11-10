@@ -11,6 +11,7 @@ export function SiteListField({ value, onSave, label, placeholder }: { value: st
       <div className="text-[12px] text-text-secondary mb-1">{label}</div>
       <textarea
         value={draft}
+        aria-label={label}
         rows={3}
         spellCheck={false}
         placeholder={placeholder}

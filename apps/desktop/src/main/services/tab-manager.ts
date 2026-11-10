@@ -1,13 +1,17 @@
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { app, BrowserWindow, Menu, dialog, nativeTheme, WebContentsView, clipboard, session, type Session } from 'electron';
 import { randomUUID } from 'node:crypto';
 import type { TabState, DashSettings, TabGroup, TabGroupColor } from '../../shared/ipc-channels';
 import { IPC } from '../../shared/ipc-channels';
-import { TAB_GROUP_COLORS, SLEEP_THRESHOLD_MINUTES, resolveAddressBarInput, NEW_TAB_URL, BOOKMARKS_BAR_HEIGHT, parseHostList, hostInList } from '../../shared/ipc-channels';
+import { TAB_GROUP_COLORS, SLEEP_THRESHOLD_MINUTES, resolveAddressBarInput, NEW_TAB_URL, BOOKMARKS_BAR_HEIGHT, VERTICAL_TABS_WIDTH, VERTICAL_TABS_WIDTH_COLLAPSED, parseHostList, hostInList } from '../../shared/ipc-channels';
 import { getDatabase } from '../db/database';
 import { buildReaderScript } from './reader-mode';
 import type { BlockedCountTracker } from './blocked-count-tracker';
 import { isBrowserShortcut } from './shortcut-filter';
+import type { SessionLayout } from '../db/database';
 import { buildNewTabHtml, NEWTAB_ACTION_PREFIX } from './new-tab-page';
 import { dismissRecoverable, recoverableCount, takeRecoverable } from './session-recovery';
 import { appLog } from './app-log';
@@ -215,6 +219,13 @@ export class TabManager {
     return this.createTab(tab.lastKnownUrl, tab.isPrivate);
   }
 
+  /** What a tab needs to be re-opened elsewhere, or null when it can't be moved (private, or the window's only tab). */
+  movableTabUrl(id: string): string | null {
+    const tab = this.tabs.get(id);
+    if (!tab || tab.isPrivate || this.tabs.size < 2) return null;
+    return tab.lastKnownUrl;
+  }
+
   togglePin(id: string): void {
     const tab = this.tabs.get(id);
     if (!tab) return;
@@ -273,7 +284,7 @@ export class TabManager {
     this.setZoom(id, (factor) => Math.max(Math.round((factor - 0.1) * 100) / 100, 0.5));
   }
   zoomReset(id: string): void {
-    this.setZoom(id, () => 1);
+    this.setZoom(id, () => this.defaultZoomFactor());
   }
   private setZoom(id: string, next: (current: number) => number): void {
     const tab = this.tabs.get(id);
@@ -282,20 +293,40 @@ export class TabManager {
     tab.view.webContents.setZoomFactor(tab.zoomFactor);
     // Remember the level for this site (never from private tabs, never for DASH's own pages).
     const host = this.zoomHostOf(tab);
-    if (host) getDatabase().setSiteZoom(host, tab.zoomFactor);
+    if (host) getDatabase().setSiteZoom(host, tab.zoomFactor, this.defaultZoomFactor());
     this.onStateChange(this.getTabState(tab));
   }
 
   /** Re-reads each open tab's saved zoom (used after a site's zoom is reset from Settings). */
   applySavedZoomToOpenTabs(): void {
     for (const tab of this.tabs.values()) {
-      const host = this.zoomHostOf(tab);
-      if (!host || !tab.view) continue;
-      const saved = getDatabase().getSiteZoom(host) ?? 1;
-      tab.zoomFactor = saved;
-      tab.view.webContents.setZoomFactor(saved);
+      if (!tab.view || tab.view.webContents.isDestroyed()) continue;
+      const wanted = this.desiredZoomFor(tab);
+      if (wanted === tab.zoomFactor) continue;
+      tab.zoomFactor = wanted;
+      tab.view.webContents.setZoomFactor(wanted);
       this.onStateChange(this.getTabState(tab));
     }
+  }
+
+  /** What zoom a tab's current page should have: saved for its site, else the default; DASH's own pages stay at 100%. */
+  private desiredZoomFor(tab: Tab): number {
+    if (!tab.view || tab.internalPage || tab.isNewTabPage) return 1;
+    let host: string;
+    try {
+      const u = new URL(tab.view.webContents.getURL());
+      if (u.protocol !== 'https:' && u.protocol !== 'http:') return 1;
+      host = u.hostname.replace(/^www\./, '');
+    } catch {
+      return 1;
+    }
+    if (tab.isPrivate) return this.defaultZoomFactor(); // private tabs never read or write saved site zoom
+    return getDatabase().getSiteZoom(host) ?? this.defaultZoomFactor();
+  }
+
+  /** The zoom a page starts at when no zoom has been saved for its site (Settings → Accessibility). */
+  private defaultZoomFactor(): number {
+    return getDatabase().getAllSettings().defaultPageZoom / 100;
   }
 
   private zoomHostOf(tab: Tab): string | null {
@@ -312,6 +343,34 @@ export class TabManager {
   print(id: string): void {
     this.tabs.get(id)?.view?.webContents.print();
   }
+  /**
+   * Print preview: renders the page to a PDF in a temp folder and opens it in a new tab, where Chromium's PDF
+   * viewer shows the real paginated output and has its own Print/Download buttons. Previews older than an hour
+   * are deleted on the next preview; the folder is private to DASH's temp area.
+   */
+  async printPreview(id: string): Promise<boolean> {
+    const tab = this.tabs.get(id);
+    const wc = tab?.view?.webContents;
+    if (!tab || !wc || wc.isDestroyed() || tab.internalPage || !/^(https?|file|data):/i.test(wc.getURL())) return false;
+    try {
+      const dir = path.join(os.tmpdir(), 'dash-print-preview');
+      await fs.promises.mkdir(dir, { recursive: true });
+      for (const f of await fs.promises.readdir(dir)) {
+        const full = path.join(dir, f);
+        const st = await fs.promises.stat(full).catch(() => null);
+        if (st && Date.now() - st.mtimeMs > 3_600_000) await fs.promises.unlink(full).catch(() => undefined);
+      }
+      const data = await wc.printToPDF({ printBackground: true, preferCSSPageSize: true });
+      const file = path.join(dir, `${randomUUID()}.pdf`);
+      await fs.promises.writeFile(file, data);
+      this.createTab(pathToFileURL(file).href, tab.isPrivate);
+      return true;
+    } catch (err) {
+      appLog(`print preview failed: ${String(err)}`);
+      return false;
+    }
+  }
+
   private async promptSavePage(id: string): Promise<void> {
     const tab = this.tabs.get(id);
     if (!tab?.view) return;
@@ -418,6 +477,21 @@ export class TabManager {
       settings.newTabCustomCss.trim().length > 0,
       recoverableCount()
     );
+  }
+
+  /**
+   * Paints DASH's own pages (New Tab, History, Settings…) in the theme's surface colour so there is no white
+   * flash while they load. Ordinary web pages keep the default white: sites assume it when they set no background.
+   */
+  applyThemeBackground(): void {
+    const colour = nativeTheme.shouldUseDarkColors ? '#0b0d10' : '#ffffff';
+    for (const tab of this.tabs.values()) {
+      try {
+        tab.view?.setBackgroundColor(tab.isNewTabPage || tab.internalPage ? colour : '#ffffff');
+      } catch {
+        /* view may be gone */
+      }
+    }
   }
 
   /** Re-renders every open New Tab Page (e.g. after the custom CSS changed). */
@@ -578,6 +652,45 @@ export class TabManager {
       .map((t) => t.lastKnownUrl);
   }
 
+  /** Pin and group layout for the tabs returned by getRestorableUrls(), same order. */
+  getRestorableLayout(): SessionLayout {
+    const tabs = this.tabOrder.map((id) => this.tabs.get(id)!).filter((t) => !t.isPrivate);
+    const groupIds: string[] = [];
+    for (const t of tabs) if (t.groupId && !groupIds.includes(t.groupId)) groupIds.push(t.groupId);
+    return {
+      tabs: tabs.map((t) => ({ pinned: t.isPinned, group: t.groupId ? groupIds.indexOf(t.groupId) : null })),
+      groups: groupIds.map((gid) => {
+        const g = this.groups.get(gid)!;
+        return { name: g.name, color: g.color, collapsed: g.collapsed };
+      }),
+    };
+  }
+
+  /** Re-applies pins and groups to freshly restored tabs (`ids` in the same order as the saved URLs). */
+  applyRestoredLayout(ids: string[], layout: SessionLayout): void {
+    const realGroup = new Map<number, string>();
+    ids.forEach((id, i) => {
+      const t = layout.tabs[i];
+      if (!t) return;
+      if (t.pinned) {
+        this.togglePin(id);
+        return;
+      }
+      if (t.group === null || t.group === undefined) return;
+      const meta = layout.groups[t.group];
+      if (!meta) return;
+      let gid = realGroup.get(t.group);
+      this.setTabGroup(id, gid ?? 'new');
+      gid = this.tabs.get(id)?.groupId ?? undefined;
+      if (gid && !realGroup.has(t.group)) {
+        realGroup.set(t.group, gid);
+        this.updateGroup(gid, { name: meta.name, color: meta.color, collapsed: false });
+      }
+    });
+    // Collapse only after every member exists, so a collapsed group never hides the active tab mid-restore.
+    for (const [idx, gid] of realGroup) if (layout.groups[idx]?.collapsed) this.updateGroup(gid, { collapsed: true });
+  }
+
   /**
    * Opens a chrome overlay. The native page view always paints above the
    * toolbar's DOM, so it has to be detached for the menu to be visible; to
@@ -623,10 +736,12 @@ export class TabManager {
     if (!tab?.view) return;
     const bounds = this.win.getContentBounds();
     const top = TOOLBAR_HEIGHT + (this.getSettings().showBookmarksBar ? BOOKMARKS_BAR_HEIGHT : 0);
+    const s = this.getSettings();
+    const left = s.verticalTabs ? (s.verticalTabsCollapsed ? VERTICAL_TABS_WIDTH_COLLAPSED : VERTICAL_TABS_WIDTH) : 0;
     tab.view.setBounds({
-      x: 0,
+      x: left,
       y: top,
-      width: bounds.width,
+      width: Math.max(0, bounds.width - left),
       height: Math.max(0, bounds.height - top),
     });
   }
@@ -715,6 +830,7 @@ export class TabManager {
     tab.view = view;
     tab.isNewTabPage = url === NEW_TAB_URL;
     tab.internalPage = internalPage;
+    this.applyThemeBackground();
     this.wireEvents(tab);
     view.webContents.setZoomFactor(tab.zoomFactor);
     view.webContents.setAudioMuted(tab.isMuted);
@@ -956,6 +1072,7 @@ export class TabManager {
           { type: 'separator' },
           { label: 'Save page as…', click: () => { void this.promptSavePage(tab.id); } },
           { label: 'Print…', click: () => this.print(tab.id) },
+          { label: 'Print preview', click: () => { void this.printPreview(tab.id); } },
           { label: 'Save as PDF…', click: () => { void this.savePdfDialog(tab.id); } }
         );
       }
@@ -1096,14 +1213,11 @@ export class TabManager {
       // switching into or out of one — see navigate()'s comments.)
       if (tab.isNewTabPage && !navigatedUrl.startsWith('data:')) tab.isNewTabPage = false;
       tab.faviconUrl = null; // clear the old site's icon until the new page reports its own
-      // Apply the zoom saved for this site (or 1 when none) so it survives restarts and new tabs.
-      const host = this.zoomHostOf(tab);
-      if (host) {
-        const saved = getDatabase().getSiteZoom(host) ?? 1;
-        if (saved !== tab.zoomFactor) {
-          tab.zoomFactor = saved;
-          wc.setZoomFactor(saved);
-        }
+      // Apply the zoom saved for this site (or the default) so it survives restarts and new tabs.
+      const wanted = this.desiredZoomFor(tab);
+      if (wanted !== tab.zoomFactor) {
+        tab.zoomFactor = wanted;
+        wc.setZoomFactor(wanted);
       }
       push();
     });

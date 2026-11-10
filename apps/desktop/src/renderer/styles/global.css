@@ -6,6 +6,26 @@
   color-scheme: dark;
 }
 
+/* The page itself paints the surface colour, so it can never disagree with the controls on top of it. */
+html,
+body {
+  background-color: rgb(var(--color-surface));
+  color: rgb(var(--color-text-primary));
+}
+
+/* Theme switch: pause per-control transitions and cross-fade the whole window once. */
+.theme-swap *,
+.theme-swap *::before,
+.theme-swap *::after {
+  transition: none !important;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-out;
+  mix-blend-mode: normal;
+}
+
 .dark {
   --color-surface: 11 13 16;
   --color-surface-elevated: 21 24 29;
@@ -14,7 +34,7 @@
   --color-accent: 91 140 255;
   --color-text-primary: 242 243 245;
   --color-text-secondary: 167 173 184;
-  --color-text-tertiary: 92 98 109;
+  --color-text-tertiary: 135 141 153; /* 4.6:1 or better on every surface (was 2.6:1) */
 }
 
 .light {
@@ -23,10 +43,10 @@
   --color-surface-elevated: 246 247 249;
   --color-surface-hover: 236 238 241;
   --color-border: 224 227 231;
-  --color-accent: 59 100 220;
+  --color-accent: 52 92 210;
   --color-text-primary: 20 22 26;
   --color-text-secondary: 90 96 107;
-  --color-text-tertiary: 150 156 166;
+  --color-text-tertiary: 100 106 117; /* 4.7:1 or better on every surface (was 2.4:1) */
 }
 
 html, body, #root {
@@ -48,4 +68,64 @@ html, body, #root {
 }
 .no-scrollbar {
   scrollbar-width: none;
+}
+
+/* ---- Accessibility ---- */
+
+/* Keyboard users always see where focus is on buttons, links and menus. */
+:where(button, [role='button'], [role='switch'], [role='menuitem'], a, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--color-accent));
+  outline-offset: 2px;
+}
+
+/* Settings → Always show keyboard focus: also on text boxes and after a mouse click. */
+.a11y-focus :focus,
+.a11y-focus :focus-visible {
+  outline: 2px solid rgb(var(--color-accent)) !important;
+  outline-offset: 2px;
+}
+
+/* Settings → High contrast (DASH's own screens; web pages are not changed). */
+.a11y-high-contrast.dark {
+  --color-surface: 0 0 0;
+  --color-surface-elevated: 10 10 10;
+  --color-surface-hover: 40 40 40;
+  --color-border: 150 156 168;
+  --color-accent: 130 175 255;
+  --color-text-primary: 255 255 255;
+  --color-text-secondary: 228 231 238;
+  --color-text-tertiary: 200 205 215;
+}
+.a11y-high-contrast.light {
+  --color-surface: 255 255 255;
+  --color-surface-elevated: 255 255 255;
+  --color-surface-hover: 226 228 232;
+  --color-border: 70 74 82;
+  --color-accent: 0 62 190;
+  --color-text-primary: 0 0 0;
+  --color-text-secondary: 28 31 38;
+  --color-text-tertiary: 60 64 72;
+}
+.a11y-high-contrast * {
+  border-color: rgb(var(--color-border));
+}
+
+/* Settings → Reduce motion, and the system's own "reduce motion" choice. */
+.a11y-reduce-motion *,
+.a11y-reduce-motion *::before,
+.a11y-reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -165,3 +165,21 @@ npm run dist:portable     # Windows portable exe only
 For the full feature history and per-milestone details (History &
 Bookmarks, Downloads, Settings & Private Browsing, Session Restore &
 Sleeping Tabs, Ad/Tracker Blocking), see `apps/desktop/README.md`.
+
+## M33 — Theme switching + toolbar polish
+
+- **Smooth light/dark switch.** `useTheme` now swaps the theme as one 180 ms cross-fade of the whole window (View
+  Transitions) with per-control transitions paused during the swap; this removes the half-old/half-new flicker. It is a
+  single instant repaint with "Reduce motion" or when the window is hidden. `html`/`body` paint the surface colour
+  themselves so they can never disagree with the controls.
+- **New Tab and error/crash pages follow the theme live** (both palettes ship in the page, switched by
+  `prefers-color-scheme`), and DASH's own pages get a themed native background (no white flash while loading).
+- **Toolbar icons** are now one SVG set (`components/Icons.tsx`) instead of text glyphs that differ per OS font; buttons have tooltips.
+- Verified on Linux/Electron by sampling computed colours frame by frame (light↔dark) and screenshots. Not verified on Windows.
+- **Print preview** (More menu, page right-click menu): renders the page to a PDF in a temp folder and opens it in a new tab in Chromium's PDF viewer (real pagination, its own Print/Download). Old previews are deleted after an hour. Tested on Linux; refused for DASH's own pages.
+- **Vertical tabs** (Settings → General → Toolbar): tab list down the left side with groups, pin/mute indicators, drag-reorder and the same right-click menu; collapsible to icons. Page views are offset to match. Also fixes a lag where toggling the bookmarks bar resized pages one step late.
+- **Move tab to a new window**: tab right-click → "Move to new window", or drag a tab out of the window. The page is re-opened in the new window (it reloads; scroll position and typed input are not carried over) and the old tab closes. Private tabs and a window's only tab are refused. The menu path is tested; the drag-out gesture uses the native drag-end position and could not be exercised in the headless test.
+- **PDF annotations**: not built by DASH. Electron 32's built-in PDF viewer already ships highlighter/pen annotation and "Download edited" (confirmed the controls exist in the viewer; drawing itself not exercised headlessly).
+- **Extensions**: unpacked Chrome extensions load through Electron's `session.loadExtension`; Electron only implements a subset of the Chrome extension APIs, so many extensions will not work fully.
+- **Encrypted backup / manual sync** (Settings → Import & Export → Encrypted backup): one `.dashbackup` file sealed with a passphrase (scrypt + AES-256-GCM, authenticated; crafted KDF parameters are rejected). Contains settings, bookmarks, per-site zoom, shortcuts, hidden sites, permissions and optionally saved passwords; history/downloads are excluded. Import merges (no duplicate bookmarks, unknown settings keys ignored). Nothing is uploaded — to sync two computers, keep the file in a folder you already sync yourself. Tested: crypto unit checks (round trip, wrong passphrase, tampering, hostile parameters, no plaintext in file) and a full export → wipe → import in the real app with dialogs stubbed. The saved-passwords path needs OS secure storage and was only tested for its refusal message here.
+- Still open in Tier 2: page translate (needs an offline engine or an opt-in online service) and profiles.

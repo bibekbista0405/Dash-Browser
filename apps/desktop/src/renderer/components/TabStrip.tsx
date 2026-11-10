@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTabsStore } from '../store/tabs-store';
+import { useSettingsStore } from '../store/settings-store';
 import { useDetachesActiveViewWhileOpen } from '../hooks/useDetachesActiveViewWhileOpen';
 import { Logo } from './Logo';
-import { TAB_GROUP_COLORS, type TabGroup, type TabGroupColor, type TabState } from '../../shared/ipc-channels';
+import { VERTICAL_TABS_WIDTH, VERTICAL_TABS_WIDTH_COLLAPSED, TAB_GROUP_COLORS, type TabGroup, type TabGroupColor, type TabState } from '../../shared/ipc-channels';
 
 const GROUP_HEX: Record<TabGroupColor, string> = {
   blue: '#5b8cff',
@@ -33,12 +34,16 @@ export function TabStrip() {
   const tabs = useTabsStore((s) => s.tabs);
   const activeTabId = useTabsStore((s) => s.activeTabId);
   const listRef = useRef<HTMLDivElement>(null);
+  const vListRef = useRef<HTMLDivElement>(null);
+  const vertical = useSettingsStore((s) => s.settings.verticalTabs);
+  const collapsed = useSettingsStore((s) => s.settings.verticalTabsCollapsed);
+  const setSetting = useSettingsStore((s) => s.set);
 
   // Many tabs: keep the active one in view (the strip scrolls sideways instead of clipping).
   useEffect(() => {
-    const el = listRef.current?.querySelector<HTMLElement>('[data-active-tab="true"]');
+    const el = (vertical ? vListRef.current : listRef.current)?.querySelector<HTMLElement>('[data-active-tab="true"]');
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [activeTabId, tabs.length]);
+  }, [activeTabId, tabs.length, vertical]);
   const switchTab = useTabsStore((s) => s.switchTab);
   const closeTab = useTabsStore((s) => s.closeTab);
   const createTab = useTabsStore((s) => s.createTab);
@@ -72,13 +77,56 @@ export function TabStrip() {
 
   const menuTab = menu ? tabs.find((t) => t.id === menu.tabId) : undefined;
 
+  const tabItems = (
+    <>
+        {tabs.map((tab, i) => {
+          const g = tab.group;
+          if (g && g.collapsed && tab.id !== activeTabId) {
+            // Collapsed: show the chip once (on the first member) and hide the rest.
+            const firstOfRun = tabs[i - 1]?.group?.id !== g.id;
+            return firstOfRun ? (
+              <GroupChip key={`g-${tab.id}`} vertical={vertical} group={g} onToggle={() => window.dash.tabs.updateGroup(g.id, { collapsed: false })} onMenu={(e) => { e.preventDefault(); setGroupMenu({ group: g, x: e.clientX, y: e.clientY }); }} count={tabs.filter((t) => t.group?.id === g.id).length} />
+            ) : null;
+          }
+          const showChip = g && tabs[i - 1]?.group?.id !== g.id;
+          return (
+          <div key={tab.id} className="contents">
+          {showChip && g && (
+            <GroupChip vertical={vertical} group={g} onToggle={() => window.dash.tabs.updateGroup(g.id, { collapsed: true })} onMenu={(e) => { e.preventDefault(); setGroupMenu({ group: g, x: e.clientX, y: e.clientY }); }} />
+          )}
+          <TabChip
+            vertical={vertical}
+            collapsed={collapsed}
+            tab={tab}
+            isActive={tab.id === activeTabId}
+            onClick={() => switchTab(tab.id)}
+            onClose={() => closeTab(tab.id)}
+            onContextMenu={(e) => openMenu(e, tab.id)}
+            onDragStart={() => setDragId(tab.id)}
+            onDragEnd={(e) => {
+              // Released outside this window's chrome: tear the tab off into its own window.
+              const out = e.screenX < window.screenX - 4 || e.screenX > window.screenX + window.outerWidth + 4 || e.screenY < window.screenY - 4 || e.screenY > window.screenY + window.outerHeight + 4;
+              if (out && e.dataTransfer.dropEffect === 'none') void window.dash.windowControls.moveTab(tab.id, e.screenX, e.screenY);
+              setDragId(null);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => handleDrop(tab.id)}
+          />
+          </div>
+          );
+        })}
+    </>
+  );
+
   return (
+    <>
     <div
       className="flex items-center gap-1 h-10 pl-2 pt-1.5 app-drag select-none"
       // Leave room for the native window buttons (right on Windows/Linux, traffic lights on the left on macOS).
       style={{ paddingRight: IS_MAC ? 8 : 148, paddingLeft: IS_MAC ? 80 : 8 }}
     >
       <Logo size={18} className="mr-1.5 mb-0.5 text-text-secondary" />
+      {vertical ? null : (
       <div
         ref={listRef}
         className="flex items-center gap-0.5 min-w-0 flex-1 max-w-fit app-no-drag overflow-x-auto overflow-y-hidden no-scrollbar"
@@ -87,35 +135,9 @@ export function TabStrip() {
           if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && listRef.current) listRef.current.scrollLeft += e.deltaY;
         }}
       >
-        {tabs.map((tab, i) => {
-          const g = tab.group;
-          if (g && g.collapsed && tab.id !== activeTabId) {
-            // Collapsed: show the chip once (on the first member) and hide the rest.
-            const firstOfRun = tabs[i - 1]?.group?.id !== g.id;
-            return firstOfRun ? (
-              <GroupChip key={`g-${tab.id}`} group={g} onToggle={() => window.dash.tabs.updateGroup(g.id, { collapsed: false })} onMenu={(e) => { e.preventDefault(); setGroupMenu({ group: g, x: e.clientX, y: e.clientY }); }} count={tabs.filter((t) => t.group?.id === g.id).length} />
-            ) : null;
-          }
-          const showChip = g && tabs[i - 1]?.group?.id !== g.id;
-          return (
-          <div key={tab.id} className="contents">
-          {showChip && g && (
-            <GroupChip group={g} onToggle={() => window.dash.tabs.updateGroup(g.id, { collapsed: true })} onMenu={(e) => { e.preventDefault(); setGroupMenu({ group: g, x: e.clientX, y: e.clientY }); }} />
-          )}
-          <TabChip
-            tab={tab}
-            isActive={tab.id === activeTabId}
-            onClick={() => switchTab(tab.id)}
-            onClose={() => closeTab(tab.id)}
-            onContextMenu={(e) => openMenu(e, tab.id)}
-            onDragStart={() => setDragId(tab.id)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => handleDrop(tab.id)}
-          />
-          </div>
-          );
-        })}
+        {tabItems}
       </div>
+      )}
       <button
         onClick={() => createTab()}
         className="app-no-drag shrink-0 h-7 w-7 flex items-center justify-center rounded-full text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors"
@@ -132,6 +154,7 @@ export function TabStrip() {
       >
         🕶
       </button>
+      {vertical && <div className="flex-1" />}
 
       {groupMenu && <GroupMenu state={groupMenu} tabs={tabs} onClose={() => setGroupMenu(null)} />}
 
@@ -153,6 +176,13 @@ export function TabStrip() {
               label={menuTab.isMuted ? 'Unmute tab' : 'Mute tab'}
               onClick={() => {
                 toggleMute(menu.tabId);
+                setMenu(null);
+              }}
+            />
+            <MenuItem
+              label="Move to new window"
+              onClick={() => {
+                void window.dash.windowControls.moveTab(menu.tabId);
                 setMenu(null);
               }}
             />
@@ -206,6 +236,26 @@ export function TabStrip() {
         </>
       )}
     </div>
+    {vertical && (
+      <aside
+        aria-label="Tabs"
+        className="absolute left-0 top-10 bottom-0 z-10 flex flex-col border-r border-border/60 bg-surface select-none"
+        style={{ width: collapsed ? VERTICAL_TABS_WIDTH_COLLAPSED : VERTICAL_TABS_WIDTH }}
+      >
+        <div ref={vListRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar p-1.5 flex flex-col gap-0.5">
+          {tabItems}
+        </div>
+        <button
+          onClick={() => setSetting('verticalTabsCollapsed', !collapsed)}
+          className="m-1.5 h-7 flex items-center justify-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary text-[12px] transition-colors"
+          aria-label={collapsed ? 'Expand tab list' : 'Collapse tab list'}
+          title={collapsed ? 'Expand tab list' : 'Collapse tab list'}
+        >
+          {collapsed ? '»' : '« Collapse'}
+        </button>
+      </aside>
+    )}
+    </>
   );
 }
 
@@ -227,11 +277,14 @@ interface TabChipProps {
   onClose: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onDragStart: () => void;
+  onDragEnd?: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: () => void;
+  vertical?: boolean;
+  collapsed?: boolean;
 }
 
-function TabChip({ tab, isActive, onClick, onClose, onContextMenu, onDragStart, onDragOver, onDrop }: TabChipProps) {
+function TabChip({ vertical, collapsed, tab, isActive, onClick, onClose, onContextMenu, onDragStart, onDragEnd, onDragOver, onDrop }: TabChipProps) {
   // A favicon URL that fails to load (e.g. the default /favicon.ico returns 404) must fall back to the placeholder, not leave a blank gap.
   const [brokenIcon, setBrokenIcon] = useState<string | null>(null);
   const iconOk = !!tab.favicon && tab.favicon !== brokenIcon;
@@ -240,17 +293,18 @@ function TabChip({ tab, isActive, onClick, onClose, onContextMenu, onDragStart, 
       draggable
       data-active-tab={isActive ? 'true' : undefined}
       onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onClick={onClick}
       onContextMenu={onContextMenu}
-      className={`group flex items-center gap-2 h-8 px-3 rounded-t-lg cursor-pointer transition-colors duration-150
-        ${tab.isPinned ? 'min-w-[40px] w-10 shrink-0 justify-center px-0' : `${isActive ? 'min-w-[120px]' : 'min-w-[36px]'} max-w-[220px] flex-1 basis-0`}
+      className={`group flex items-center gap-2 h-8 px-3 cursor-pointer transition-colors duration-150 ${vertical ? 'rounded-lg w-full shrink-0' : 'rounded-t-lg'}
+        ${vertical ? (collapsed ? 'justify-center px-0' : '') : tab.isPinned ? 'min-w-[40px] w-10 shrink-0 justify-center px-0' : `${isActive ? 'min-w-[120px]' : 'min-w-[36px]'} max-w-[220px] flex-1 basis-0`}
         ${isActive ? 'bg-surface-elevated text-text-primary' : 'bg-transparent text-text-secondary hover:bg-surface-hover'}
         ${tab.isPrivate ? 'ring-1 ring-inset ring-purple-500/30' : ''}
         ${tab.isSleeping ? 'opacity-60' : ''}`}
       title={tab.title || 'New Tab'}
-      style={tab.group ? { boxShadow: `inset 0 2px 0 ${GROUP_HEX[tab.group.color]}` } : undefined}
+      style={tab.group ? { boxShadow: vertical ? `inset 3px 0 0 ${GROUP_HEX[tab.group.color]}` : `inset 0 2px 0 ${GROUP_HEX[tab.group.color]}` } : undefined}
     >
       {tab.isLoading ? (
         <span className="h-2.5 w-2.5 rounded-full border-[1.5px] border-accent border-t-transparent animate-spin shrink-0" />
@@ -274,15 +328,15 @@ function TabChip({ tab, isActive, onClick, onClose, onContextMenu, onDragStart, 
         </svg>
       )}
 
-      {!tab.isPinned && <span className="truncate text-[13px] flex-1">{tab.title || 'New Tab'}</span>}
+      {(vertical ? !collapsed : !tab.isPinned) && <span className="truncate text-[13px] flex-1">{tab.title || 'New Tab'}</span>}
 
-      {tab.isMuted && (
+      {tab.isMuted && !collapsed && (
         <span className="text-[11px] shrink-0" title="Muted">
           🔇
         </span>
       )}
 
-      {!tab.isPinned && (
+      {!collapsed && (vertical || !tab.isPinned) && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -309,7 +363,9 @@ function GroupChip({
   onToggle,
   onMenu,
   count,
+  vertical,
 }: {
+  vertical?: boolean;
   group: TabGroup;
   onToggle: () => void;
   onMenu: (e: React.MouseEvent) => void;
@@ -321,7 +377,7 @@ function GroupChip({
       onClick={onToggle}
       onContextMenu={onMenu}
       title={group.collapsed ? 'Expand group' : 'Collapse group'}
-      className="shrink-0 h-6 px-2 mr-0.5 rounded-md text-[11px] font-medium text-[#0b0d10] max-w-[120px] truncate"
+      className={`shrink-0 h-6 px-2 rounded-md text-[11px] font-medium text-[#0b0d10] truncate ${vertical ? 'w-full text-left mt-1' : 'mr-0.5 max-w-[120px]'}`}
       style={{ background: hex }}
     >
       {group.name || (group.collapsed ? 'Group' : '')}

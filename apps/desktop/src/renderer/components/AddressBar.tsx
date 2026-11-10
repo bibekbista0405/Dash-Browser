@@ -1,3 +1,4 @@
+import { IconBack, IconForward, IconReload, IconStop, IconHome, IconStar, IconDownload, IconBookmarks, IconHistory, IconSettings, IconMore, IconShield } from './Icons';
 import { VpnToolbarButton } from './VpnToolbarButton';
 import { SitePanel } from './SitePanel';
 import { Logo } from './Logo';
@@ -81,25 +82,25 @@ export function AddressBar({
   return (
     <div className="app-no-drag relative flex items-center gap-2 h-12 px-3">
       <NavButton disabled={!activeTab.canGoBack} onClick={() => store.goBack(activeTab.id)} label="Back">
-        ‹
+        <IconBack />
       </NavButton>
       <NavButton disabled={!activeTab.canGoForward} onClick={() => store.goForward(activeTab.id)} label="Forward">
-        ›
+        <IconForward />
       </NavButton>
       <NavButton
         onClick={() => (activeTab.isLoading ? store.stop(activeTab.id) : store.reload(activeTab.id))}
         label={activeTab.isLoading ? 'Stop' : 'Reload'}
       >
-        {activeTab.isLoading ? '×' : '↻'}
+        {activeTab.isLoading ? <IconStop /> : <IconReload />}
       </NavButton>
       <NavButton onClick={() => store.goHome(activeTab.id)} label="Home">
-        <span className="text-[15px]">⌂</span>
+        <IconHome />
       </NavButton>
 
       <form onSubmit={submit} className="flex-1 relative">
         <div className="flex items-center gap-2 h-9 px-4 rounded-full bg-surface-elevated border border-border/60 focus-within:border-accent/60 transition-colors">
           {activeTab.isPrivate && (
-            <span className="text-[10px] font-medium text-purple-300 bg-purple-500/15 px-1.5 py-0.5 rounded shrink-0">
+            <span className="text-[10px] font-medium text-purple-700 dark:text-purple-300 bg-purple-500/15 px-1.5 py-0.5 rounded shrink-0">
               Private
             </span>
           )}
@@ -108,7 +109,7 @@ export function AddressBar({
               className="flex items-center gap-1 text-[10px] font-medium text-accent bg-accent/15 px-1.5 py-0.5 rounded shrink-0"
               title={`${activeTab.blockedCount} ad/tracker request${activeTab.blockedCount === 1 ? '' : 's'} blocked on this page`}
             >
-              🛡 {activeTab.blockedCount}
+              <IconShield /> {activeTab.blockedCount}
             </span>
           )}
           <SecurityBadge url={activeTab.url} onClick={() => setShowSite((v) => !v)} expanded={showSite} />
@@ -159,30 +160,30 @@ export function AddressBar({
       )}
 
       <NavButton onClick={toggleBookmark} label={bookmarked ? 'Remove bookmark' : 'Bookmark this page'}>
-        <span className={bookmarked ? 'text-accent' : ''}>{bookmarked ? '★' : '☆'}</span>
+        <span className={bookmarked ? 'text-accent' : ''}><IconStar filled={bookmarked} /></span>
       </NavButton>
       <NavButton onClick={onOpenDownloads} label="Show downloads">
-        <span className="relative text-[13px]">
-          ⬇
+        <span className="relative">
+          <IconDownload />
           {hasActiveDownload && (
             <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
           )}
         </span>
       </NavButton>
       <NavButton onClick={onOpenBookmarks} label="Show bookmarks">
-        <span className="text-[13px]">▤</span>
+        <IconBookmarks />
       </NavButton>
       <NavButton onClick={onOpenHistory} label="Show history">
-        <span className="text-[13px]">↺</span>
+        <IconHistory />
       </NavButton>
       <VpnToolbarButton onOpenSettings={onOpenSettings} />
       <NavButton onClick={onOpenSettings} label="Settings">
-        <span className="text-[13px]">⚙</span>
+        <IconSettings />
       </NavButton>
 
       <div className="relative">
         <NavButton onClick={() => setShowMoreMenu((v) => !v)} label="More actions">
-          <span className="text-[13px]">⋮</span>
+          <IconMore />
         </NavButton>
         {showMoreMenu && (
           <MoreMenu
@@ -281,6 +282,7 @@ function MoreMenu({
       </div>
       {divider}
       {item('Print…', () => window.dash.page.print(tabId), `${mod}+P`)}
+      {item('Print preview', () => window.dash.page.printPreview(tabId))}
       {item('Save as PDF…', () => window.dash.page.savePdf(tabId))}
       {item('Save page as…', () => window.dash.page.save(tabId), `${mod}+S`)}
       {item('Find in page…', () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: !isMac, metaKey: isMac })), `${mod}+F`)}
@@ -308,6 +310,7 @@ function NavButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
+      title={label}
       className="h-7 w-7 flex items-center justify-center rounded-full text-lg leading-none
         text-text-secondary hover:text-text-primary hover:bg-surface-hover
         disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
