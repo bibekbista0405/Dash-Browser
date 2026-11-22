@@ -1,0 +1,918 @@
+
+/* ============================================================
+   DASH — SWEET DREAM
+   Cute • Dreamy • Pastel • Magical • Liquid Glass
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] {
+    --background: #fff0f7;
+    --background-deep: #f9e5f5;
+    --text: #684b72;
+    --muted: #a98eaf;
+
+    --pink: #ff9ecb;
+    --pink-light: #ffd1e8;
+    --lavender: #c5a5ff;
+    --purple: #a982e8;
+    --blue: #a8dfff;
+    --peach: #ffd3c2;
+
+    --accent: #ee91c4;
+    --accent-two: #b994f5;
+    --accent-three: #91cfee;
+
+    --glass: rgba(255, 255, 255, .48);
+    --glass-hover: rgba(255, 255, 255, .76);
+    --glass-border: rgba(255, 255, 255, .78);
+
+    --glow: rgba(255, 153, 210, .35);
+
+    color: var(--text);
+
+    background:
+        radial-gradient(ellipse at 10% 10%, #ffd8e9 0%, transparent 42%),
+        radial-gradient(ellipse at 90% 15%, #e4d3ff 0%, transparent 43%),
+        radial-gradient(ellipse at 50% 100%, #cceaff 0%, transparent 48%),
+        linear-gradient(135deg, #fff1f8, #f5eaff 55%, #e9f6ff);
+}
+
+
+/* ============================================================
+   01 — DREAMY AURORA
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-atmosphere {
+    position: absolute;
+    inset: -20%;
+    z-index: -5;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.dash-home[data-theme="sweet"] .dash-atmosphere::before,
+.dash-home[data-theme="sweet"] .dash-atmosphere::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    filter: blur(85px);
+    will-change: transform;
+}
+
+.dash-home[data-theme="sweet"] .dash-atmosphere::before {
+    background:
+        radial-gradient(ellipse at 25% 35%,
+            rgba(255, 147, 202, .48), transparent 40%),
+        radial-gradient(ellipse at 75% 60%,
+            rgba(190, 145, 255, .4), transparent 42%),
+        radial-gradient(ellipse at 45% 90%,
+            rgba(255, 206, 177, .3), transparent 38%);
+
+    animation: sweetDreamAurora 18s ease-in-out infinite alternate;
+}
+
+.dash-home[data-theme="sweet"] .dash-atmosphere::after {
+    background:
+        radial-gradient(ellipse at 75% 20%,
+            rgba(147, 216, 255, .42), transparent 40%),
+        radial-gradient(ellipse at 20% 80%,
+            rgba(255, 184, 224, .4), transparent 40%);
+
+    animation: sweetDreamAuroraTwo 24s ease-in-out infinite alternate;
+}
+
+@keyframes sweetDreamAurora {
+    0% {
+        transform: translate(-5%, -3%) rotate(0deg) scale(1);
+    }
+    50% {
+        transform: translate(5%, 5%) rotate(12deg) scale(1.15);
+    }
+    100% {
+        transform: translate(-2%, 7%) rotate(-9deg) scale(1.08);
+    }
+}
+
+@keyframes sweetDreamAuroraTwo {
+    0% {
+        transform: translate(4%, 2%) rotate(0deg) scale(1.1);
+    }
+    50% {
+        transform: translate(-6%, -4%) rotate(-12deg) scale(.95);
+    }
+    100% {
+        transform: translate(3%, 5%) rotate(8deg) scale(1.15);
+    }
+}
+
+
+/* ============================================================
+   02 — PASTEL BACKGROUND GLOW
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-light-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.dash-home[data-theme="sweet"] .dash-orb {
+    position: absolute;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+
+    background: radial-gradient(
+        circle,
+        rgba(255, 169, 220, .55),
+        transparent 70%
+    );
+
+    filter: blur(35px);
+    animation: sweetOrbFloat 15s ease-in-out infinite alternate;
+}
+
+.dash-home[data-theme="sweet"] .dash-orb:nth-child(1) {
+    top: 8%;
+    left: 5%;
+}
+
+.dash-home[data-theme="sweet"] .dash-orb:nth-child(2) {
+    top: 40%;
+    right: 5%;
+    width: 340px;
+    height: 340px;
+    background: radial-gradient(circle, rgba(191, 158, 255, .48), transparent 70%);
+    animation-delay: -5s;
+}
+
+.dash-home[data-theme="sweet"] .dash-orb:nth-child(3) {
+    bottom: -10%;
+    left: 35%;
+    background: radial-gradient(circle, rgba(155, 220, 255, .45), transparent 70%);
+    animation-delay: -9s;
+}
+
+@keyframes sweetOrbFloat {
+    from {
+        transform: translate(-25px, -15px) scale(.9);
+    }
+    to {
+        transform: translate(35px, 30px) scale(1.18);
+    }
+}
+
+
+/* ============================================================
+   03 — FLOATING BUBBLES
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-bubbles {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.dash-home[data-theme="sweet"] .dash-bubble {
+    position: absolute;
+    bottom: -100px;
+
+    width: 45px;
+    height: 45px;
+
+    border-radius: 50%;
+
+    background: linear-gradient(
+        135deg,
+        rgba(255,255,255,.65),
+        rgba(255,183,221,.13),
+        rgba(185,157,255,.24)
+    );
+
+    border: 1px solid rgba(255,255,255,.8);
+
+    box-shadow:
+        inset -5px -5px 12px rgba(205,155,230,.12),
+        inset 5px 5px 12px rgba(255,255,255,.8),
+        0 0 25px rgba(255,173,225,.18);
+
+    backdrop-filter: blur(5px);
+
+    animation: sweetBubbleRise 15s linear infinite;
+}
+
+.dash-home[data-theme="sweet"] .dash-bubble:nth-child(1) {
+    left: 8%;
+    width: 35px;
+    height: 35px;
+}
+
+.dash-home[data-theme="sweet"] .dash-bubble:nth-child(2) {
+    left: 25%;
+    width: 65px;
+    height: 65px;
+    animation-delay: -5s;
+}
+
+.dash-home[data-theme="sweet"] .dash-bubble:nth-child(3) {
+    left: 55%;
+    width: 25px;
+    height: 25px;
+    animation-delay: -9s;
+}
+
+.dash-home[data-theme="sweet"] .dash-bubble:nth-child(4) {
+    left: 78%;
+    width: 55px;
+    height: 55px;
+    animation-delay: -3s;
+}
+
+.dash-home[data-theme="sweet"] .dash-bubble:nth-child(5) {
+    left: 92%;
+    width: 40px;
+    height: 40px;
+    animation-delay: -11s;
+}
+
+@keyframes sweetBubbleRise {
+    0% {
+        transform: translateY(0) translateX(0) scale(.7);
+        opacity: 0;
+    }
+    15% {
+        opacity: .8;
+    }
+    50% {
+        transform: translateY(-55vh) translateX(35px) scale(1);
+    }
+    85% {
+        opacity: .6;
+    }
+    100% {
+        transform: translateY(-115vh) translateX(-25px) scale(1.2);
+        opacity: 0;
+    }
+}
+
+
+/* ============================================================
+   04 — MOUSE REACTIVE PINK GLOW
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-cursor-glow {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+
+    background: radial-gradient(
+        circle 400px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+        rgba(255, 156, 215, .26),
+        rgba(201, 164, 255, .12) 45%,
+        transparent 75%
+    );
+
+    transition: opacity .4s ease;
+}
+
+
+/* ============================================================
+   05 — PARTICLE CANVAS
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-particle-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    opacity: .75;
+    pointer-events: none;
+}
+
+
+/* ============================================================
+   06 — MAGICAL SPARKLES
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-sparkle {
+    position: absolute;
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #fff;
+
+    box-shadow:
+        0 0 8px #fff,
+        0 0 18px #ffb3e2,
+        0 0 35px #c6a5ff;
+
+    animation: sweetSparkle 3s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes sweetSparkle {
+    0%, 100% {
+        opacity: .2;
+        transform: scale(.5) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.6) rotate(90deg);
+    }
+}
+
+
+/* ============================================================
+   07 — MAIN CONTENT
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-content {
+    position: relative;
+    z-index: 2;
+
+    min-height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    padding: 50px 24px;
+
+    animation: sweetEntrance 1.3s cubic-bezier(.22,1,.36,1) both;
+}
+
+@keyframes sweetEntrance {
+    from {
+        opacity: 0;
+        transform: translateY(35px) scale(.96);
+        filter: blur(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+
+/* ============================================================
+   08 — CUTE BRANDING
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-branding {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 38px;
+}
+
+.dash-home[data-theme="sweet"] .dash-logo {
+    width: 82px;
+    height: 82px;
+    object-fit: contain;
+
+    filter:
+        drop-shadow(0 8px 15px rgba(239,142,204,.35))
+        drop-shadow(0 0 25px rgba(192,154,255,.3));
+
+    animation: sweetLogoFloat 5s ease-in-out infinite;
+}
+
+.dash-home[data-theme="sweet"] .dash-logo:hover {
+    transform: rotate(-8deg) scale(1.12);
+}
+
+@keyframes sweetLogoFloat {
+    0%, 100% {
+        transform: translateY(0) rotate(-2deg);
+    }
+    50% {
+        transform: translateY(-13px) rotate(3deg);
+    }
+}
+
+.dash-home[data-theme="sweet"] .dash-title {
+    font-size: clamp(34px, 4vw, 46px);
+    font-weight: 900;
+    letter-spacing: .13em;
+
+    background: linear-gradient(
+        110deg,
+        #f18fbe,
+        #bd91f0,
+        #86cbed,
+        #f5a5cf,
+        #bd91f0
+    );
+
+    background-size: 300% auto;
+
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+
+    filter: drop-shadow(0 5px 12px rgba(221,153,220,.18));
+
+    animation: sweetTitleShimmer 8s linear infinite;
+}
+
+@keyframes sweetTitleShimmer {
+    to {
+        background-position: 300% center;
+    }
+}
+
+.dash-home[data-theme="sweet"] .dash-tagline {
+    color: #a58bab;
+    font-size: 14px;
+    letter-spacing: .08em;
+}
+
+
+/* ============================================================
+   09 — LIQUID GLASS SEARCH BAR
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-search {
+    position: relative;
+
+    width: min(690px, 90%);
+    min-height: 66px;
+
+    display: flex;
+    align-items: center;
+
+    isolation: isolate;
+    overflow: hidden;
+
+    border: 1px solid rgba(255,255,255,.85);
+    border-radius: 100px;
+
+    background: rgba(255,255,255,.43);
+
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+
+    box-shadow:
+        0 15px 50px rgba(205,145,195,.16),
+        0 5px 20px rgba(160,140,220,.12),
+        inset 0 1px 2px rgba(255,255,255,.95),
+        inset 0 -1px rgba(255,255,255,.25);
+
+    transition:
+        transform .5s cubic-bezier(.22,1,.36,1),
+        background .4s ease,
+        box-shadow .5s ease,
+        border-color .4s ease;
+}
+
+.dash-home[data-theme="sweet"] .dash-search::before {
+    content: "";
+    position: absolute;
+    inset: -100%;
+    z-index: -1;
+
+    background: linear-gradient(
+        115deg,
+        transparent 35%,
+        rgba(255,255,255,.75) 49%,
+        transparent 62%
+    );
+
+    transform: translateX(-70%);
+    transition: transform 1.1s ease;
+}
+
+.dash-home[data-theme="sweet"] .dash-search:hover::before {
+    transform: translateX(70%);
+}
+
+.dash-home[data-theme="sweet"] .dash-search:hover {
+    transform: translateY(-3px);
+
+    background: rgba(255,255,255,.65);
+
+    box-shadow:
+        0 20px 60px rgba(224,143,197,.22),
+        0 0 30px rgba(220,165,255,.2),
+        inset 0 1px 2px white;
+}
+
+.dash-home[data-theme="sweet"] .dash-search:focus-within {
+    transform: scale(1.015);
+
+    border-color: #efa8d5;
+
+    background: rgba(255,255,255,.78);
+
+    box-shadow:
+        0 0 0 4px rgba(255,172,218,.16),
+        0 20px 60px rgba(224,143,197,.23),
+        0 0 35px rgba(199,163,255,.2),
+        inset 0 1px white;
+}
+
+.dash-home[data-theme="sweet"] .dash-search input {
+    width: 100%;
+    height: 66px;
+    padding: 0 28px;
+
+    border: none;
+    outline: none;
+
+    background: transparent;
+
+    color: #765b81;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.dash-home[data-theme="sweet"] .dash-search input::placeholder {
+    color: #b59ab9;
+}
+
+
+/* ============================================================
+   10 — SHORTCUT GRID
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-shortcuts {
+    display: grid;
+
+    grid-template-columns: repeat(5, 115px);
+
+    justify-content: center;
+
+    gap: 22px 24px;
+
+    width: min(100%, 700px);
+
+    margin-top: 48px;
+}
+
+.dash-home[data-theme="sweet"] .dash-shortcut {
+    position: relative;
+
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    gap: 12px;
+
+    padding: 15px 8px;
+
+    border: 1px solid transparent;
+    border-radius: 25px;
+
+    background: transparent;
+
+    cursor: pointer;
+
+    animation: sweetShortcutEnter .9s cubic-bezier(.22,1,.36,1) both;
+
+    transition:
+        transform .55s cubic-bezier(.22,1,.36,1),
+        background .4s ease,
+        border-color .4s ease,
+        box-shadow .5s ease;
+}
+
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(1) { animation-delay: .1s; }
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(2) { animation-delay: .17s; }
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(3) { animation-delay: .24s; }
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(4) { animation-delay: .31s; }
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(5) { animation-delay: .38s; }
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(6) { animation-delay: .45s; }
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(7) { animation-delay: .52s; }
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(8) { animation-delay: .59s; }
+.dash-home[data-theme="sweet"] .dash-shortcut:nth-child(9) { animation-delay: .66s; }
+
+@keyframes sweetShortcutEnter {
+    from {
+        opacity: 0;
+        transform: translateY(25px) scale(.85);
+        filter: blur(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+.dash-home[data-theme="sweet"] .dash-shortcut:hover {
+    transform: translateY(-10px) scale(1.06);
+
+    background: rgba(255,255,255,.4);
+
+    border-color: rgba(255,255,255,.85);
+
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    box-shadow:
+        0 18px 40px rgba(211,153,201,.16),
+        0 0 30px rgba(255,174,220,.22),
+        inset 0 1px white;
+}
+
+
+/* ============================================================
+   11 — SHORTCUT ICONS
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-shortcut-icon {
+    width: 62px;
+    height: 62px;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 21px;
+
+    background: rgba(255,255,255,.94);
+
+    box-shadow:
+        0 10px 25px rgba(182,139,192,.17),
+        inset 0 1px white;
+
+    transition:
+        transform .5s cubic-bezier(.22,1,.36,1),
+        border-radius .5s ease,
+        box-shadow .5s ease;
+}
+
+.dash-home[data-theme="sweet"] .dash-shortcut-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: inherit;
+}
+
+.dash-home[data-theme="sweet"] .dash-shortcut:hover .dash-shortcut-icon {
+    transform: translateY(-4px) rotate(-6deg) scale(1.1);
+
+    border-radius: 25px;
+
+    box-shadow:
+        0 15px 32px rgba(182,139,192,.22),
+        0 0 22px rgba(255,169,220,.35);
+}
+
+
+/* ============================================================
+   12 — SHORTCUT LABELS
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-shortcut-label {
+    max-width: 115px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: #a88eaf;
+
+    font-size: 13px;
+    font-weight: 600;
+
+    transition: color .3s ease;
+}
+
+.dash-home[data-theme="sweet"] .dash-shortcut:hover .dash-shortcut-label {
+    color: #75577f;
+}
+
+
+/* ============================================================
+   13 — ADD SHORTCUT
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-shortcut-add .dash-shortcut-icon {
+    background: rgba(255,255,255,.3);
+
+    border: 1px dashed rgba(226,157,204,.7);
+
+    color: #d78ab9;
+
+    box-shadow: none;
+}
+
+.dash-home[data-theme="sweet"] .dash-shortcut-add:hover .dash-shortcut-icon {
+    background: rgba(255,255,255,.7);
+    border-color: #ec9bc9;
+    box-shadow: 0 0 25px rgba(255,159,212,.3);
+}
+
+
+/* ============================================================
+   14 — RESTORE SHORTCUT
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-restore {
+    margin-top: 40px;
+
+    color: #c08cc8;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+        color .3s ease,
+        text-shadow .3s ease,
+        transform .3s ease;
+}
+
+.dash-home[data-theme="sweet"] .dash-restore:hover {
+    color: #ed91c6;
+
+    text-shadow: 0 0 18px rgba(255,151,208,.5);
+
+    transform: translateY(-3px);
+}
+
+
+/* ============================================================
+   15 — THEME SWITCHER
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] .dash-theme-switcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 6px;
+
+    border: 1px solid rgba(255,255,255,.8);
+    border-radius: 50px;
+
+    background: rgba(255,255,255,.42);
+
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+
+    box-shadow: 0 8px 25px rgba(210,152,202,.12);
+}
+
+.dash-home[data-theme="sweet"] .dash-theme-button {
+    padding: 9px 15px;
+
+    border: none;
+    border-radius: 40px;
+
+    color: #a98caf;
+
+    background: transparent;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: all .35s ease;
+}
+
+.dash-home[data-theme="sweet"] .dash-theme-button:hover {
+    color: #855d91;
+    background: rgba(255,255,255,.5);
+}
+
+.dash-home[data-theme="sweet"] .dash-theme-button[aria-pressed="true"] {
+    color: #9e629b;
+
+    background: rgba(255,255,255,.85);
+
+    box-shadow:
+        0 4px 15px rgba(218,151,207,.2),
+        inset 0 1px white;
+}
+
+
+/* ============================================================
+   16 — CINEMATIC THEME TRANSITION
+   ============================================================ */
+
+.dash-home[data-theme="sweet"].theme-transitioning {
+    animation: sweetThemeReveal 1.2s ease both;
+}
+
+@keyframes sweetThemeReveal {
+    0% {
+        filter: brightness(.8) saturate(.7);
+    }
+    40% {
+        filter: brightness(1.2) saturate(1.3);
+    }
+    100% {
+        filter: brightness(1) saturate(1);
+    }
+}
+
+
+/* ============================================================
+   17 — SELECTION AND SCROLLBAR
+   ============================================================ */
+
+.dash-home[data-theme="sweet"] ::selection {
+    color: #76517c;
+    background: #ffc6e5;
+}
+
+.dash-home[data-theme="sweet"] ::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dash-home[data-theme="sweet"] ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.dash-home[data-theme="sweet"] ::-webkit-scrollbar-thumb {
+    background: linear-gradient(#ffa9d3, #c5a1f5);
+    border-radius: 20px;
+}
+
+
+/* ============================================================
+   18 — RESPONSIVE DESIGN
+   ============================================================ */
+
+@media (max-width: 900px) {
+    .dash-home[data-theme="sweet"] .dash-shortcuts {
+        grid-template-columns: repeat(4, 105px);
+        gap: 18px;
+    }
+}
+
+@media (max-width: 650px) {
+    .dash-home[data-theme="sweet"] .dash-content {
+        padding: 35px 16px;
+    }
+
+    .dash-home[data-theme="sweet"] .dash-shortcuts {
+        grid-template-columns: repeat(3, minmax(75px, 1fr));
+        gap: 12px;
+    }
+
+    .dash-home[data-theme="sweet"] .dash-shortcut-icon {
+        width: 55px;
+        height: 55px;
+    }
+
+    .dash-home[data-theme="sweet"] .dash-search {
+        width: 100%;
+    }
+}
+
+@media (max-width: 380px) {
+    .dash-home[data-theme="sweet"] .dash-shortcuts {
+        gap: 6px;
+    }
+
+    .dash-home[data-theme="sweet"] .dash-shortcut {
+        padding: 12px 4px;
+    }
+
+    .dash-home[data-theme="sweet"] .dash-shortcut-icon {
+        width: 49px;
+        height: 49px;
+    }
+}
+
+
+/* ============================================================
+   19 — ACCESSIBILITY
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .dash-home[data-theme="sweet"] *,
+    .dash-home[data-theme="sweet"] *::before,
+    .dash-home[data-theme="sweet"] *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+
+    .dash-home[data-theme="sweet"] .dash-bubbles,
+    .dash-home[data-theme="sweet"] .dash-particle-canvas {
+        display: none;
+    }
+}
+
+/* ============================================================
+   END — SWEET DREAM
+   ============================================================ */

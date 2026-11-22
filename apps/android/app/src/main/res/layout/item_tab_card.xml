@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:layout_margin="6dp" android:background="@drawable/bg_card" android:orientation="vertical"
+    android:padding="6dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="40dp"
+        android:gravity="center_vertical" android:orientation="horizontal">
+        <TextView android:id="@+id/cardBadge" android:layout_width="22dp" android:layout_height="22dp"
+            android:layout_marginStart="6dp" android:gravity="center" android:textColor="#FFFFFF"
+            android:textSize="12sp" android:textStyle="bold" />
+        <TextView android:id="@+id/cardTitle" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:layout_weight="1" android:ellipsize="end" android:maxLines="1"
+            android:textColor="@color/dash_text" android:textSize="14sp" />
+        <ImageView android:id="@+id/cardClose" android:layout_width="40dp" android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="Close tab"
+            android:padding="11dp" android:src="@drawable/ic_close" />
+    </LinearLayout>
+    <FrameLayout android:layout_width="match_parent" android:layout_height="190dp">
+        <ImageView android:id="@+id/cardThumb" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:background="@color/dash_bg" android:scaleType="centerCrop" />
+        <TextView android:id="@+id/cardThumbLabel" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:gravity="center" android:textColor="@color/dash_dim" android:textSize="14sp" />
+    </FrameLayout>
+</LinearLayout>

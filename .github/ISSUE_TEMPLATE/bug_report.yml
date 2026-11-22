@@ -1,0 +1,31 @@
+name: Bug report
+description: Something in DASH doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problem? Don't file it here — see SECURITY.md.
+        Please don't paste passwords, history or other private data.
+  - type: input
+    id: version
+    attributes:
+      label: DASH version
+      description: Settings → About
+    validations: { required: true }
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows 11, Windows 10, Linux, macOS, Other]
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected and what happened instead
+    validations: { required: true }

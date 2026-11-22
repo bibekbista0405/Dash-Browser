@@ -1,0 +1,11 @@
+# Categories for GitHub's auto-generated release notes (used by `gh release create --generate-notes`).
+changelog:
+  categories:
+    - title: New
+      labels: [enhancement]
+    - title: Fixes
+      labels: [bug]
+    - title: Security and privacy
+      labels: [security, privacy]
+    - title: Other changes
+      labels: ['*']

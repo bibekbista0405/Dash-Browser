@@ -1,0 +1,19 @@
+node_modules
+dist-electron
+dist
+release
+*.log
+.DS_Store
+
+# Code-signing material must never be committed
+*.pfx
+*.p12
+*.pvk
+*.spc
+*.snk
+*.key
+*.pem
+*.cer
+*.crt
+.env
+.env.*

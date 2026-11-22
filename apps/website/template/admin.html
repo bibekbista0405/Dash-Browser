@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>DASH site editor</title>
+<style>
+:root { --bg: #f1f4fa; --panel: #ffffff; --ink: #0c1120; --ink-2: #4a5470; --line: #cfd7e8; --accent: #2f45f0; --accent-ink: #fff; --danger: #c0392b; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b0d10; --panel: #12161c; --ink: #eef1f7; --ink-2: #99a3b9; --line: #222a36; --accent: #7d94ff; --accent-ink: #0b0d10; --danger: #ff7a6b; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+header h1 { font-size: 1.05rem; margin: 0 auto 0 0; }
+button, .btn { font: inherit; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; text-decoration: none; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:hover, .btn:hover { border-color: var(--ink-2); }
+main { max-width: 900px; margin: 0 auto; padding: 24px 20px 80px; }
+.intro { color: var(--ink-2); margin-bottom: 20px; }
+details.sec { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 12px; }
+details.sec > summary { cursor: pointer; padding: 14px 18px; font-weight: 700; text-transform: capitalize; }
+.body { padding: 4px 18px 18px; display: grid; gap: 12px; }
+label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--ink-2); }
+input[type=text], textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+textarea { min-height: 84px; resize: vertical; }
+.group { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; }
+.group > .title { font-weight: 600; font-size: 0.85rem; text-transform: capitalize; }
+.item { border: 1px dashed var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 8px; }
+.row { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+.row small { margin-right: auto; color: var(--ink-2); }
+.mini { padding: 3px 9px; font-size: 0.8rem; }
+.danger { color: var(--danger); }
+#status { font-size: 0.85rem; color: var(--ink-2); }
+.note { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-top: 24px; color: var(--ink-2); }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DASH site editor</h1>
+  <span id="status">Loading…</span>
+  <button id="open" type="button">Open content.json</button>
+  <button id="copy" type="button">Copy JSON</button>
+  <a class="btn" id="gh" target="_blank" rel="noopener">Edit on GitHub</a>
+  <button id="save" class="primary" type="button">Download content.json</button>
+  <input id="file" type="file" accept="application/json,.json" hidden>
+</header>
+<main>
+  <p class="intro">Edit the website's text here. Nothing is uploaded: your changes stay in this page until you download the file. Then replace <code>apps/website/content.json</code> in the repository and the site rebuilds itself.</p>
+  <div id="form"></div>
+  <div class="note"><b>How publishing works.</b> Commit the new <code>content.json</code> (or use "Edit on GitHub" and paste the copied JSON). The GitHub Action in <code>.github/workflows/website.yml</code> runs <code>node apps/website/build.mjs</code> and deploys the result to GitHub Pages. To preview locally, run <code>node apps/website/build.mjs</code> and open <code>apps/website/dist/index.html</code>.</div>
+</main>
+<script>
+(function () {
+  var data = null, original = '', form = document.getElementById('form'), status = document.getElementById('status'), KEY = 'dash-site-draft';
+  function set(msg) { status.textContent = msg; }
+  function clone(v) { return JSON.parse(JSON.stringify(v)); }
+  function blank(v) { if (typeof v === 'string') return ''; if (typeof v === 'boolean') return false; if (Array.isArray(v)) return []; if (v && typeof v === 'object') { var o = {}; Object.keys(v).forEach(function (k) { o[k] = blank(v[k]); }); return o; } return null; }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function changed() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} set('Edited. Download to keep your changes.'); }
+  function label(key) { return String(key).replace(/([A-Z])/g, ' $1').toLowerCase(); }
+
+  function field(parent, key, holder) {
+    var v = holder[key];
+    if (typeof v === 'string') {
+      var l = el('label', '', label(key)), long = v.length > 70 || v.indexOf('\n') >= 0 || /text|intro|lede|note|description|^a$|^d$/.test(key);
+      var inp = long ? el('textarea') : el('input'); if (!long) inp.type = 'text';
+      inp.value = v; inp.addEventListener('input', function () { holder[key] = inp.value; changed(); });
+      l.appendChild(inp); parent.appendChild(l);
+    } else if (typeof v === 'boolean') {
+      var lb = el('label', '', label(key)), cb = el('input'); cb.type = 'checkbox'; cb.checked = v; cb.addEventListener('change', function () { holder[key] = cb.checked; changed(); }); lb.appendChild(cb); parent.appendChild(lb);
+    } else if (Array.isArray(v)) {
+      list(parent, key, holder);
+    } else if (v && typeof v === 'object') {
+      var g = el('div', 'group'); g.appendChild(el('div', 'title', label(key)));
+      Object.keys(v).forEach(function (k) { field(g, k, v); }); parent.appendChild(g);
+    }
+  }
+  function list(parent, key, holder) {
+    var arr = holder[key], g = el('div', 'group'); g.appendChild(el('div', 'title', label(key)));
+    var box = el('div'); box.style.display = 'grid'; box.style.gap = '10px'; g.appendChild(box);
+    function draw() {
+      box.innerHTML = '';
+      arr.forEach(function (item, i) {
+        var it = el('div', 'item'), bar = el('div', 'row'); bar.appendChild(el('small', '', '#' + (i + 1)));
+        function btn(t, fn, cls) { var b = el('button', 'mini ' + (cls || ''), t); b.type = 'button'; b.addEventListener('click', fn); bar.appendChild(b); }
+        btn('Up', function () { if (i > 0) { arr.splice(i - 1, 0, arr.splice(i, 1)[0]); draw(); changed(); } });
+        btn('Down', function () { if (i < arr.length - 1) { arr.splice(i + 1, 0, arr.splice(i, 1)[0]); draw(); changed(); } });
+        btn('Remove', function () { arr.splice(i, 1); draw(); changed(); }, 'danger');
+        it.appendChild(bar);
+        if (item && typeof item === 'object') Object.keys(item).forEach(function (k) { field(it, k, item); });
+        else { var l = el('label', '', 'text'), inp = el('input'); inp.type = 'text'; inp.value = item; inp.addEventListener('input', function () { arr[i] = inp.value; changed(); }); l.appendChild(inp); it.appendChild(l); }
+        box.appendChild(it);
+      });
+      var add = el('button', 'mini', 'Add item'); add.type = 'button';
+      add.addEventListener('click', function () { arr.push(arr.length && typeof arr[0] === 'object' ? blank(arr[0]) : ''); draw(); changed(); });
+      box.appendChild(add);
+    }
+    draw(); parent.appendChild(g);
+  }
+  function build() {
+    form.innerHTML = '';
+    Object.keys(data).forEach(function (k, idx) {
+      var d = el('details', 'sec'); if (idx === 0) d.open = true; d.appendChild(el('summary', '', label(k)));
+      var b = el('div', 'body'); var h = {}; h[k] = data[k];
+      if (typeof data[k] === 'object' && !Array.isArray(data[k])) Object.keys(data[k]).forEach(function (kk) { field(b, kk, data[k]); }); else field(b, k, data);
+      d.appendChild(b); form.appendChild(d);
+    });
+    var repo = (data.site && data.site.repo) || 'bibekbista0405/Dash-Browser';
+    document.getElementById('gh').href = 'https://github.com/' + repo + '/edit/main/apps/website/content.json';
+  }
+  function load(obj, msg) { data = obj; original = JSON.stringify(obj); build(); set(msg); }
+  function json() { return JSON.stringify(data, null, 2) + '\n'; }
+
+  document.getElementById('save').addEventListener('click', function () {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([json()], { type: 'application/json' })); a.download = 'content.json'; document.body.appendChild(a); a.click(); a.remove(); set('Downloaded content.json');
+  });
+  document.getElementById('copy').addEventListener('click', function () {
+    var t = json(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { set('Copied. Paste it into content.json on GitHub.'); }, function () { var ta = el('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); set('Copied.'); } catch (e) { set('Copy failed. Use Download instead.'); } ta.remove(); });
+  });
+  document.getElementById('open').addEventListener('click', function () { document.getElementById('file').click(); });
+  document.getElementById('file').addEventListener('change', function (e) {
+    var f = e.target.files[0]; if (!f) return; var r = new FileReader();
+    r.onload = function () { try { load(JSON.parse(r.result), 'Opened ' + f.name); } catch (err) { set('That file is not valid JSON.'); } }; r.readAsText(f);
+  });
+
+  var draft = null; try { draft = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+  fetch('content.json').then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (d) { load(draft || d, draft ? 'Restored your unsaved edits.' : 'Loaded content.json'); })
+    .catch(function () { if (draft) load(draft, 'Restored your unsaved edits.'); else set('Could not load content.json here. Use "Open content.json".'); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="dash_bg">#0B0D10</color>
+    <color name="dash_surface">#15181D</color>
+    <color name="dash_card">#1A1E24</color>
+    <color name="dash_field">#252A32</color>
+    <color name="dash_divider">#2B3038</color>
+    <color name="dash_text">#E8EAED</color>
+    <color name="dash_dim">#9AA0A8</color>
+    <color name="dash_accent">#5B8CFF</color>
+    <color name="dash_accent_soft">#22305A</color>
+    <color name="dash_private">#A78BFA</color>
+    <color name="dash_private_bg">#2A2142</color>
+    <color name="dash_danger">#F28B82</color>
+</resources>

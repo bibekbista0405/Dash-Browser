@@ -1,0 +1,179 @@
+# DASH — Windows release pipeline.
+#
+#   build   -> unsigned NSIS installer + portable exe, validated, uploaded as one artifact (no secrets, read-only token)
+#   sign    -> only when signing is switched on AND the run is for a version tag: submits that artifact to SignPath
+#              (approval gate = the "windows-signing" environment). Holds the only credential (SIGNPATH_API_TOKEN).
+#   publish -> only after signing succeeded: verifies the Authenticode signatures, then creates the GitHub release.
+#
+# Nothing is ever published from an unsigned build. Pull requests never trigger this workflow.
+# See docs/WINDOWS-RELEASE.md for the one-time setup (SignPath, environment, tag protection, variables).
+name: Windows release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch: {}
+
+# Default: no permissions at all. Each job asks for exactly what it needs.
+permissions: {}
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build unsigned Windows artifacts
+    runs-on: windows-latest # Windows x64
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Release tags must point at a commit on main
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME is not on main; refusing to build a release from it."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: npm
+
+      - name: Install dependencies (lockfile)
+        run: npm ci
+
+      - name: Tag must match the app version
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match apps/desktop/package.json version $version"
+            exit 1
+          fi
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build Windows installer and portable exe (unsigned)
+        run: npm run dist:win
+
+      - name: Validate artifacts and metadata
+        run: node apps/desktop/scripts/check-artifacts.mjs
+
+      - name: Report signature status (expected to be unsigned at this stage)
+        shell: pwsh
+        run: ./apps/desktop/scripts/verify-signatures.ps1 -AllowUnsigned "apps/desktop/release/*.exe"
+
+      - name: Stage the two executables
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+          $version = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
+          Copy-Item "apps/desktop/release/DASH Setup $version.exe" staging/
+          Copy-Item "apps/desktop/release/DASH $version.exe" staging/
+          Get-ChildItem staging | Format-Table Name, Length
+
+      # SignPath reads the artifact from GitHub, so it must be uploaded here (default ZIP: the artifact
+      # configuration's root element is <zip-file>; see signing/signpath/artifact-configuration.xml).
+      - name: Upload unsigned artifacts
+        id: upload-unsigned
+        uses: actions/upload-artifact@v7
+        with:
+          name: dash-windows-unsigned
+          path: staging/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  sign:
+    name: Sign with SignPath
+    needs: build
+    # Needs a version tag AND the repository variable SIGNPATH_SIGNING_ENABLED=true (set only after SignPath approved
+    # the project and the variables below are filled in). Otherwise the run ends after "build": nothing is published.
+    if: ${{ github.ref_type == 'tag' && vars.SIGNPATH_SIGNING_ENABLED == 'true' }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    # Configure "windows-signing" with required reviewers: that is the human approval before any signing request.
+    environment: windows-signing
+    permissions:
+      actions: read # SignPath reads the uploaded artifact and the run metadata
+      contents: read
+    steps:
+      - name: Submit signing request
+        id: signpath
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dash-windows-signed
+          path: signed/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Verify signatures and publish release
+    needs: sign
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # create the release; no other job has this
+    steps:
+      - name: Check out (for the verification script only)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download signed artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dash-windows-signed
+          path: signed
+
+      # Strict: a missing, unsigned or invalid signature fails the job and nothing gets published.
+      - name: Verify Authenticode signatures
+        shell: pwsh
+        env:
+          EXPECTED_SIGNER: ${{ vars.EXPECTED_SIGNER_SUBJECT }}
+        run: ./apps/desktop/scripts/verify-signatures.ps1 -ExpectedSigner "$env:EXPECTED_SIGNER" "signed/*.exe"
+
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem signed/*.exe | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+          } | Set-Content -Encoding ascii signed/SHA256SUMS.txt
+          Get-Content signed/SHA256SUMS.txt
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" --repo "$env:GITHUB_REPOSITORY" --title "DASH $env:GITHUB_REF_NAME" --generate-notes (Get-ChildItem signed -File).FullName

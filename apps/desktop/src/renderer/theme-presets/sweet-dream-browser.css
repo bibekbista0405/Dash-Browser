@@ -1,0 +1,23 @@
+/* DASH — SWEET DREAM (browser) · pastel pink / lavender for the toolbar, tabs, menus and internal pages */
+.light {
+  --color-surface: 255 240 247;
+  --color-surface-elevated: 255 250 253;
+  --color-surface-hover: 250 226 242;
+  --color-border: 238 208 232;
+  --color-accent: 224 120 180;
+  --color-text-primary: 104 75 114;
+  --color-text-secondary: 150 120 160;
+  --color-text-tertiary: 185 160 192;
+}
+.dark {
+  --color-surface: 30 22 42;
+  --color-surface-elevated: 42 31 58;
+  --color-surface-hover: 56 42 76;
+  --color-border: 76 58 100;
+  --color-accent: 244 143 200;
+  --color-text-primary: 250 236 248;
+  --color-text-secondary: 200 175 212;
+  --color-text-tertiary: 142 118 158;
+}
+*::-webkit-scrollbar-thumb { background: linear-gradient(#ffa9d3, #c5a1f5); border-radius: 20px; }
+::selection { background: #ffc6e5; color: #76517c; }

@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/dash_bg" android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Toolbar: address pill, tab switcher, menu — the same shape as Chrome on Android. -->
+        <LinearLayout
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent" android:layout_height="60dp"
+            android:background="@color/dash_surface" android:gravity="center_vertical"
+            android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="4dp">
+
+            <LinearLayout
+                android:id="@+id/homeBrand"
+                android:layout_width="0dp" android:layout_height="46dp" android:layout_weight="1"
+                android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="4dp"
+                android:visibility="gone">
+                <ImageView
+                    android:layout_width="34dp" android:layout_height="34dp"
+                    android:contentDescription="DASH" android:src="@drawable/logo_tile" />
+                <TextView
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp" android:letterSpacing="0.3" android:text="DASH"
+                    android:textColor="@color/dash_text" android:textSize="17sp" android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/pill"
+                android:layout_width="0dp" android:layout_height="46dp" android:layout_weight="1"
+                android:background="@drawable/bg_address" android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/siteIcon"
+                    android:layout_width="44dp" android:layout_height="44dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Site information"
+                    android:padding="12dp" android:src="@drawable/ic_search" />
+
+                <EditText
+                    android:id="@+id/address"
+                    android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                    android:background="@null"
+                    android:hint="Search or type URL"
+                    android:imeOptions="actionGo|flagNoExtractUi"
+                    android:importantForAutofill="no"
+                    android:inputType="textUri"
+                    android:maxLines="1"
+                    android:selectAllOnFocus="true"
+                    android:singleLine="true"
+                    android:textColor="@color/dash_text"
+                    android:textColorHint="@color/dash_dim"
+                    android:textSize="16sp" />
+
+                <ImageView
+                    android:id="@+id/micBtn"
+                    android:layout_width="44dp" android:layout_height="44dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Search by voice"
+                    android:padding="12dp" android:src="@drawable/ic_mic" android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/qrBtn"
+                    android:layout_width="44dp" android:layout_height="44dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Scan a QR code"
+                    android:padding="12dp" android:src="@drawable/ic_qr" android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/clearBtn"
+                    android:layout_width="44dp" android:layout_height="44dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Clear"
+                    android:padding="12dp" android:src="@drawable/ic_close" android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/reloadBtn"
+                    android:layout_width="44dp" android:layout_height="44dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Reload"
+                    android:padding="12dp" android:src="@drawable/ic_refresh" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/tabsBtn"
+                android:layout_width="48dp" android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Switch tabs">
+                <TextView
+                    android:id="@+id/tabsCount"
+                    android:layout_width="26dp" android:layout_height="26dp" android:layout_gravity="center"
+                    android:background="@drawable/bg_tabcount" android:gravity="center"
+                    android:text="1" android:textColor="@color/dash_text"
+                    android:textSize="13sp" android:textStyle="bold" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/menuBtn"
+                style="@style/IconBtn" android:layout_width="48dp" android:layout_height="48dp"
+                android:contentDescription="More" android:src="@drawable/ic_more" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent" android:layout_height="3dp"
+            android:progressDrawable="@drawable/bg_progress"
+            android:max="100" android:visibility="invisible" />
+
+        <TextView
+            android:id="@+id/offlineBar"
+            android:layout_width="match_parent" android:layout_height="26dp"
+            android:background="@color/dash_card" android:gravity="center"
+            android:text="You're offline" android:textColor="@color/dash_dim" android:textSize="13sp"
+            android:visibility="gone" />
+
+        <!-- Find in page -->
+        <LinearLayout
+            android:id="@+id/findBar"
+            android:layout_width="match_parent" android:layout_height="52dp"
+            android:background="@color/dash_surface" android:gravity="center_vertical"
+            android:orientation="horizontal" android:paddingStart="16dp" android:visibility="gone">
+            <EditText
+                android:id="@+id/findInput"
+                android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
+                android:background="@null" android:hint="Find in page"
+                android:imeOptions="actionSearch|flagNoExtractUi" android:importantForAutofill="no"
+                android:inputType="text" android:singleLine="true"
+                android:textColor="@color/dash_text" android:textColorHint="@color/dash_dim" android:textSize="16sp" />
+            <TextView
+                android:id="@+id/findCount"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp" android:textColor="@color/dash_dim" android:textSize="13sp" />
+            <ImageView android:id="@+id/findPrev" style="@style/IconBtn" android:contentDescription="Previous" android:src="@drawable/ic_up" />
+            <ImageView android:id="@+id/findNext" style="@style/IconBtn" android:contentDescription="Next" android:src="@drawable/ic_down" />
+            <ImageView android:id="@+id/findClose" style="@style/IconBtn" android:contentDescription="Close" android:src="@drawable/ic_close" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+
+            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                android:id="@+id/swipe"
+                android:layout_width="match_parent" android:layout_height="match_parent">
+                <FrameLayout
+                    android:id="@+id/container"
+                    android:layout_width="match_parent" android:layout_height="match_parent" />
+            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+            <!-- Suggestions while typing in the address bar -->
+            <LinearLayout
+                android:id="@+id/suggestBox"
+                android:layout_width="match_parent" android:layout_height="match_parent"
+                android:background="@color/dash_bg" android:orientation="vertical" android:visibility="gone">
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/suggestList"
+                    android:layout_width="match_parent" android:layout_height="match_parent"
+                    android:clipToPadding="false" android:paddingVertical="6dp" />
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Tab switcher -->
+    <LinearLayout
+        android:id="@+id/switcher"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:background="@color/dash_bg" android:clickable="true" android:focusable="true"
+        android:orientation="vertical" android:visibility="gone">
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="60dp"
+            android:background="@color/dash_surface" android:gravity="center_vertical"
+            android:orientation="horizontal" android:paddingHorizontal="12dp">
+            <TextView android:id="@+id/chipNormal" android:layout_width="wrap_content" android:layout_height="38dp"
+                android:background="@drawable/bg_chip_sel" android:gravity="center"
+                android:paddingHorizontal="18dp" android:text="Tabs" android:textColor="@color/dash_text"
+                android:textSize="14sp" android:textStyle="bold" />
+            <TextView android:id="@+id/chipPrivate" android:layout_width="wrap_content" android:layout_height="38dp"
+                android:layout_marginStart="8dp" android:background="@drawable/bg_chip" android:gravity="center"
+                android:paddingHorizontal="18dp" android:text="Incognito" android:textColor="@color/dash_text"
+                android:textSize="14sp" android:textStyle="bold" />
+            <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+            <ImageView android:id="@+id/switcherMore" style="@style/IconBtn" android:contentDescription="More" android:src="@drawable/ic_more" />
+        </LinearLayout>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/tabGrid"
+                android:layout_width="match_parent" android:layout_height="match_parent"
+                android:clipToPadding="false" android:padding="8dp" />
+            <TextView android:id="@+id/tabEmpty" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="center" android:gravity="center" android:padding="32dp"
+                android:textColor="@color/dash_dim" android:textSize="15sp" android:visibility="gone" />
+        </FrameLayout>
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="68dp"
+            android:background="@color/dash_surface" android:gravity="center_vertical"
+            android:orientation="horizontal" android:paddingHorizontal="16dp">
+            <TextView android:id="@+id/switcherNew" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
+                android:background="@drawable/bg_btn_primary" android:gravity="center"
+                android:text="New tab" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" />
+            <TextView android:id="@+id/switcherDone" android:layout_width="wrap_content" android:layout_height="48dp"
+                android:layout_marginStart="10dp" android:background="@drawable/bg_btn_tonal" android:gravity="center"
+                android:paddingHorizontal="24dp" android:text="Done" android:textColor="@color/dash_text"
+                android:textSize="15sp" android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Full-screen pages: history, bookmarks, downloads, settings -->
+    <LinearLayout
+        android:id="@+id/screen"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:background="@color/dash_bg" android:clickable="true" android:focusable="true"
+        android:orientation="vertical" android:visibility="gone">
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="60dp"
+            android:background="@color/dash_surface" android:gravity="center_vertical"
+            android:orientation="horizontal" android:paddingHorizontal="4dp">
+            <ImageView android:id="@+id/screenBack" style="@style/IconBtn" android:layout_width="48dp" android:layout_height="48dp"
+                android:contentDescription="Back" android:src="@drawable/ic_back" />
+            <TextView android:id="@+id/screenTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginStart="6dp" android:textColor="@color/dash_text" android:textSize="20sp" android:textStyle="bold" />
+            <ImageView android:id="@+id/screenSearch" style="@style/IconBtn" android:layout_width="48dp" android:layout_height="48dp"
+                android:contentDescription="Search" android:src="@drawable/ic_search" />
+            <ImageView android:id="@+id/screenAction" style="@style/IconBtn" android:layout_width="48dp" android:layout_height="48dp"
+                android:contentDescription="Clear all" android:src="@drawable/ic_delete" />
+        </LinearLayout>
+        <EditText
+            android:id="@+id/screenQuery"
+            android:layout_width="match_parent" android:layout_height="52dp"
+            android:background="@color/dash_surface" android:hint="Search"
+            android:imeOptions="actionSearch|flagNoExtractUi" android:importantForAutofill="no"
+            android:inputType="text" android:paddingHorizontal="20dp" android:singleLine="true"
+            android:textColor="@color/dash_text" android:textColorHint="@color/dash_dim" android:textSize="16sp"
+            android:visibility="gone" />
+        <FrameLayout android:id="@+id/screenBody" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+    </LinearLayout>
+
+    <!-- App lock -->
+    <FrameLayout
+        android:id="@+id/lockOverlay"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:background="@color/dash_bg" android:clickable="true" android:focusable="true"
+        android:visibility="gone">
+        <LinearLayout
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_gravity="center" android:gravity="center" android:orientation="vertical">
+            <ImageView android:layout_width="88dp" android:layout_height="88dp"
+                android:contentDescription="DASH" android:src="@drawable/logo_tile" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="20dp" android:text="DASH is locked" android:textColor="@color/dash_text"
+                android:textSize="22sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="6dp" android:text="Use your fingerprint, face or screen lock"
+                android:textColor="@color/dash_dim" android:textSize="14sp" />
+            <TextView android:id="@+id/btnUnlock" android:layout_width="wrap_content" android:layout_height="48dp"
+                android:layout_marginTop="26dp" android:background="@drawable/bg_btn_primary" android:gravity="center"
+                android:paddingHorizontal="40dp" android:text="Unlock" android:textColor="#FFFFFF"
+                android:textSize="15sp" android:textStyle="bold" />
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Reference copy of the SignPath "artifact configuration" for DASH. SignPath stores the real configuration in its web
+  app (Project -> Artifact configurations); this file is the text to paste there. Syntax per
+  https://docs.signpath.io/artifact-configuration/syntax
+
+  The GitHub workflow uploads the two Windows executables as a ZIP (actions/upload-artifact's default), so the root
+  element is <zip-file>. Both files sit at the root of that ZIP.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file-set>
+      <include path="*.exe"/>
+      <for-each>
+        <authenticode-sign/>
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>

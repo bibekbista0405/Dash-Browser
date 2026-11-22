@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Dash" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/dash_accent</item>
+        <item name="android:windowBackground">@color/dash_bg</item>
+        <item name="android:statusBarColor">@color/dash_surface</item>
+        <item name="android:navigationBarColor">@color/dash_bg</item>
+        <item name="colorControlActivated">@color/dash_accent</item>
+        <item name="colorSurface">@color/dash_surface</item>
+        <item name="colorOnSurface">@color/dash_text</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">@color/dash_accent_soft</item>
+        <item name="colorOnPrimaryContainer">@color/dash_text</item>
+        <item name="colorSecondary">@color/dash_accent</item>
+        <item name="colorSecondaryContainer">@color/dash_accent_soft</item>
+        <item name="colorOnSecondaryContainer">@color/dash_text</item>
+        <item name="colorSurfaceVariant">@color/dash_field</item>
+        <item name="colorOnSurfaceVariant">@color/dash_dim</item>
+        <item name="colorSurfaceContainerLowest">@color/dash_bg</item>
+        <item name="colorSurfaceContainerLow">@color/dash_card</item>
+        <item name="colorSurfaceContainer">@color/dash_surface</item>
+        <item name="colorSurfaceContainerHigh">@color/dash_surface</item>
+        <item name="colorSurfaceContainerHighest">@color/dash_field</item>
+        <item name="colorOutline">@color/dash_dim</item>
+        <item name="colorOutlineVariant">@color/dash_divider</item>
+        <item name="colorError">@color/dash_danger</item>
+        <item name="colorOnBackground">@color/dash_text</item>
+        <item name="materialAlertDialogTheme">@style/DashDialog</item>
+        <item name="android:textColorPrimary">@color/dash_text</item>
+        <item name="android:textColorSecondary">@color/dash_dim</item>
+        <item name="android:colorBackground">@color/dash_bg</item>
+        <item name="android:windowAnimationStyle">@style/DashWindowAnim</item>
+        <item name="bottomSheetDialogTheme">@style/DashSheet</item>
+        <item name="alertDialogTheme">@style/DashDialog</item>
+    </style>
+    <style name="DashWindowAnim" parent="@android:style/Animation.Activity" />
+    <style name="DashSheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/DashSheetBody</item>
+    </style>
+    <style name="DashSheetBody" parent="Widget.Material3.BottomSheet">
+        <item name="backgroundTint">@color/dash_surface</item>
+    </style>
+    <style name="DashDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/dash_surface</item>
+        <item name="colorOnSurface">@color/dash_text</item>
+    </style>
+    <style name="PopupAnim">
+        <item name="android:windowEnterAnimation">@anim/popup_in</item>
+        <item name="android:windowExitAnimation">@anim/popup_out</item>
+    </style>
+    <style name="IconBtn">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+</resources>

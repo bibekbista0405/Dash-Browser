@@ -1,0 +1,1280 @@
+import { registerWebsiteLockIpc } from './website-lock-ipc';
+import { registerAppLockIpc } from './app-lock-ipc';
+import { fetchWebSuggestions } from '../services/search-suggestions';
+import type { InternalPageId } from '../services/tab-manager';
+import { ipcMain, WebContents, dialog, nativeImage, app, webContents as electronWebContents, session } from 'electron';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { IPC, NOTE_MAX_LENGTH, type DashSettings, type PermissionDecision, SEARCH_ENGINES, DOH_PROVIDERS, NEWTAB_CSS_MAX_LENGTH, APP_CSS_MAX_LENGTH, HOST_LIST_MAX_LENGTH, parseHostList, hostInList, parsePasswordCsv, type SiteInfo } from '../../shared/ipc-channels';
+import type { UpdateService } from '../services/updater';
+import type { AiHelper } from '../services/ai-helper';
+import type { ArchiveManager } from '../services/archive-manager';
+import type { DownloadManager } from '../services/download-manager';
+import type { BlockedCountTracker } from '../services/blocked-count-tracker';
+import type { PasswordManager } from '../services/password-manager';
+import type { PermissionManager } from '../services/permission-manager';
+import type { VpnManager } from '../services/vpn-manager';
+import type { ExtensionManager } from '../services/extension-manager';
+import { BrowserImporter } from '../services/browser-import';
+import { BackupService } from '../services/backup';
+import { BookmarksIO } from '../services/bookmarks-io';
+import { getDatabase, type SessionLayout } from '../db/database';
+import type { ProfileManager } from '../services/profile-manager';
+import type { ContainerManager } from '../services/container-manager';
+import { listWebApps, launchWebApp, uninstallWebApp } from '../services/web-apps';
+import { getContextForSender, getAllWindowContexts } from '../window-context';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const dragIconPath = path.join(__dirname, '../../resources/drag-file-icon.png');
+
+function assertString(value: unknown, field: string): asserts value is string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 8192) {
+    throw new Error(`DASH: invalid value for "${field}"`);
+  }
+}
+
+function assertNumber(value: unknown, field: string): asserts value is number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`DASH: invalid value for "${field}"`);
+  }
+}
+
+/** Every handler needs a valid sender — either the chrome window itself, or a trusted internal-page tab (dash://history etc). Never an ordinary content tab. */
+function requireContext(sender: WebContents) {
+  const context = getContextForSender(sender.id, sender);
+  if (!context) {
+    let where = '?';
+    try { where = sender.getURL().slice(0, 120); } catch { /* destroyed */ }
+    console.warn(`[DASH] rejected IPC call from an unrecognized window (${where})`);
+    throw new Error('DASH: rejected IPC call from an unrecognized window');
+  }
+  return context;
+}
+
+export interface IpcServices {
+  downloadManager: DownloadManager;
+  tracker: BlockedCountTracker;
+  passwordManager: PasswordManager;
+  permissionManager: PermissionManager;
+  extensionManager: ExtensionManager;
+  vpn: VpnManager;
+  onSettingsChanged: (settings: DashSettings) => void;
+  onBookmarksChanged: () => void;
+  onNotesChanged: () => void;
+  onArchiveChanged: () => void;
+  archive: ArchiveManager;
+  ai: AiHelper;
+  updates: UpdateService;
+  containerManager: ContainerManager;
+  profileManager: ProfileManager;
+  onContainersChanged: () => void;
+  createWindow: (urls?: string[], at?: { x: number; y: number }, layout?: SessionLayout) => void;
+  respondToLoginSavePrompt: (promptId: string, save: boolean) => void;
+}
+
+/**
+ * Registered exactly ONCE for the whole app's lifetime — ipcMain.handle
+ * channels are global, not per-window. Every handler resolves "which
+ * window is this for" from the sender via requireContext(), so this
+ * correctly supports any number of open windows.
+ */
+export function registerIpcHandlers(services: IpcServices): void {
+  registerWebsiteLockIpc();
+  registerAppLockIpc();
+  const {
+    downloadManager,
+    tracker,
+    passwordManager,
+    permissionManager,
+    extensionManager,
+    vpn,
+    onSettingsChanged,
+    onBookmarksChanged,
+    onNotesChanged,
+    onArchiveChanged,
+    archive,
+    ai,
+    updates,
+    createWindow,
+    containerManager,
+    profileManager,
+    onContainersChanged,
+    respondToLoginSavePrompt,
+  } = services;
+
+  // ---- Tabs ----
+  ipcMain.handle(IPC.TAB_CREATE, (e, url?: unknown, isPrivate?: unknown, containerId?: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    if (url !== undefined) assertString(url, 'url');
+    if (isPrivate !== undefined && typeof isPrivate !== 'boolean') {
+      throw new Error('DASH: invalid value for "isPrivate"');
+    }
+    if (containerId !== undefined && containerId !== null) assertString(containerId, 'containerId');
+    return tabManager.createTab(url as string | undefined, isPrivate as boolean | undefined, (containerId as string | null | undefined) ?? null);
+  });
+
+  ipcMain.handle(IPC.TAB_CLOSE, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.closeTab(id);
+  });
+
+  ipcMain.handle(IPC.TAB_SWITCH, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.switchTab(id);
+  });
+
+  ipcMain.handle(IPC.TAB_NAVIGATE, (e, id: unknown, url: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    assertString(url, 'url');
+    tabManager.navigate(id, url);
+  });
+
+  ipcMain.handle(IPC.TAB_GO_BACK, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.goBack(id);
+  });
+
+  ipcMain.handle(IPC.TAB_GO_FORWARD, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.goForward(id);
+  });
+
+  ipcMain.handle(IPC.TAB_GO_HOME, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.goHome(id);
+  });
+
+  ipcMain.handle(IPC.TAB_RELOAD, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.reload(id);
+  });
+
+  ipcMain.handle(IPC.TAB_STOP, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.stop(id);
+  });
+
+  ipcMain.handle(IPC.TABS_SNAPSHOT, (e) => {
+    const { tabManager } = requireContext(e.sender);
+    return tabManager.getAllTabStates();
+  });
+
+  ipcMain.handle(IPC.TAB_DUPLICATE, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    return tabManager.duplicateTab(id);
+  });
+
+  ipcMain.handle(IPC.TAB_SET_GROUP, (e, id: unknown, target: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    if (target !== null) assertString(target, 'target');
+    tabManager.setTabGroup(id, target as string | null);
+  });
+
+  ipcMain.handle(IPC.GROUP_UPDATE, (e, groupId: unknown, patch: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(groupId, 'groupId');
+    if (typeof patch !== 'object' || patch === null) throw new Error('Invalid patch');
+    const p = patch as Record<string, unknown>;
+    const clean: { name?: string; color?: string; collapsed?: boolean } = {};
+    if (p.name !== undefined) {
+      assertString(p.name, 'name');
+      clean.name = p.name;
+    }
+    if (p.color !== undefined) {
+      assertString(p.color, 'color');
+      clean.color = p.color;
+    }
+    if (p.collapsed !== undefined) {
+      if (typeof p.collapsed !== 'boolean') throw new Error('Invalid collapsed');
+      clean.collapsed = p.collapsed;
+    }
+    tabManager.updateGroup(groupId, clean);
+  });
+
+  ipcMain.handle(IPC.GROUP_CLOSE, (e, groupId: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(groupId, 'groupId');
+    tabManager.closeGroup(groupId);
+  });
+
+  ipcMain.handle(IPC.TAB_TOGGLE_PIN, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.togglePin(id);
+  });
+
+  ipcMain.handle(IPC.TAB_TOGGLE_MUTE, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.toggleMute(id);
+  });
+
+  ipcMain.handle(IPC.TAB_REOPEN_CLOSED, (e) => {
+    const { tabManager } = requireContext(e.sender);
+    return tabManager.reopenClosedTab();
+  });
+
+  ipcMain.handle(IPC.TAB_REORDER, (e, orderedIds: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    if (!Array.isArray(orderedIds) || !orderedIds.every((id) => typeof id === 'string')) {
+      throw new Error('DASH: invalid tab order payload');
+    }
+    tabManager.reorderTabs(orderedIds);
+  });
+
+  // ---- Find in page ----
+  ipcMain.handle(IPC.FIND_IN_PAGE_START, (e, id: unknown, text: unknown, forward: unknown) => {
+    const { tabManager, win } = requireContext(e.sender);
+    assertString(id, 'id');
+    assertString(text, 'text');
+    tabManager.findInPage(id, text, forward !== false, (matches: number, activeMatchOrdinal: number) => {
+      win.webContents.send(IPC.FIND_IN_PAGE_RESULT, { matches, activeMatchOrdinal });
+    });
+  });
+
+  ipcMain.handle(IPC.FIND_IN_PAGE_NEXT, (e, id: unknown, forward: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.findNext(id, forward !== false);
+  });
+
+  ipcMain.handle(IPC.FIND_IN_PAGE_STOP, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.stopFindInPage(id);
+  });
+
+  // ---- Zoom ----
+  ipcMain.handle(IPC.ZOOM_IN, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.zoomIn(id);
+  });
+  ipcMain.handle(IPC.ZOOM_OUT, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.zoomOut(id);
+  });
+  ipcMain.handle(IPC.ZOOM_RESET, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.zoomReset(id);
+  });
+
+  // ---- Page actions ----
+  ipcMain.handle(IPC.PAGE_PRINT, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.print(id);
+  });
+
+  ipcMain.handle(IPC.PAGE_PRINT_PREVIEW, async (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    return tabManager.printPreview(id);
+  });
+
+  ipcMain.handle(IPC.PAGE_SAVE, async (e, id: unknown) => {
+    const { tabManager, win } = requireContext(e.sender);
+    assertString(id, 'id');
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Save Page',
+      defaultPath: 'page.html',
+      filters: [{ name: 'Web Page', extensions: ['html'] }],
+    });
+    if (result.canceled || !result.filePath) return;
+    await tabManager.savePage(id, result.filePath);
+  });
+
+  ipcMain.handle(IPC.PAGE_SAVE_PDF, async (e, id: unknown) => {
+    const { tabManager, win } = requireContext(e.sender);
+    assertString(id, 'id');
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Save as PDF',
+      defaultPath: 'page.pdf',
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    if (result.canceled || !result.filePath) return;
+    await tabManager.savePdf(id, result.filePath);
+  });
+
+  ipcMain.handle(IPC.TABS_SLEEP_STATS, () => {
+    let sleeping = 0;
+    let freedKb = 0;
+    for (const ctx of getAllWindowContexts()) {
+      const s = ctx.tabManager.getSleepStats();
+      sleeping += s.sleeping;
+      freedKb += s.freedKb;
+    }
+    return { sleeping, freedMb: Math.round(freedKb / 1024) };
+  });
+
+  const bareHost = (h: string): string => h.toLowerCase().replace(/^www\./, '');
+
+  ipcMain.handle(IPC.SITE_INFO, async (e, id: unknown): Promise<SiteInfo | null> => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    const ctx = tabManager.getSiteContext(id);
+    if (!ctx) return null;
+    let u: URL;
+    try {
+      u = new URL(ctx.url);
+    } catch {
+      return { host: '', scheme: 'other', isPrivate: ctx.isPrivate, cookieCount: 0, blockingOff: false, permissions: [] };
+    }
+    const scheme: SiteInfo['scheme'] =
+      u.protocol === 'https:' ? 'https' : u.protocol === 'http:' ? 'http' : u.protocol === 'dash:' ? 'internal' : u.protocol === 'file:' ? 'file' : 'other';
+    const isWeb = scheme === 'https' || scheme === 'http';
+    const host = isWeb ? bareHost(u.hostname) : '';
+    let cookieCount = 0;
+    if (isWeb) {
+      try {
+        cookieCount = (await ctx.session.cookies.get({ url: u.origin })).length;
+      } catch {
+        cookieCount = 0;
+      }
+    }
+    const blockingOff = isWeb && hostInList(host, parseHostList(getDatabase().getAllSettings().blockingOffHosts));
+    // Private tabs never save permission decisions, so there is nothing to list for them.
+    const permissions = isWeb && !ctx.isPrivate ? getDatabase().listPermissions().filter((p) => p.origin === u.origin) : [];
+    return { host, scheme, isPrivate: ctx.isPrivate, cookieCount, blockingOff, permissions };
+  });
+
+  ipcMain.handle(IPC.SITE_SET_PROTECTION, (e, host: unknown, off: unknown) => {
+    requireContext(e.sender);
+    assertString(host, 'host');
+    if (typeof off !== 'boolean') throw new Error('DASH: invalid value');
+    const h = bareHost(host);
+    if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(h) || h.length > 253) throw new Error('DASH: invalid site');
+    const db = getDatabase();
+    const list = parseHostList(db.getAllSettings().blockingOffHosts).filter((x) => x !== h);
+    if (off) list.push(h);
+    db.setSetting('blockingOffHosts', list.join('\n'));
+    onSettingsChanged(db.getAllSettings());
+  });
+
+  ipcMain.handle(IPC.SITE_CLEAR_DATA, async (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    const ctx = tabManager.getSiteContext(id);
+    if (!ctx) return 0;
+    const u = new URL(ctx.url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return 0;
+    const cookies = await ctx.session.cookies.get({ url: u.origin });
+    for (const c of cookies) {
+      const domain = c.domain?.startsWith('.') ? c.domain.slice(1) : (c.domain ?? u.hostname);
+      await ctx.session.cookies.remove(`http${c.secure ? 's' : ''}://${domain}${c.path ?? '/'}`, c.name).catch(() => undefined);
+    }
+    await ctx.session.clearStorageData({
+      origin: u.origin,
+      storages: ['cookies', 'localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage'],
+    });
+    return cookies.length;
+  });
+
+  ipcMain.handle(IPC.SITE_ZOOM_LIST, (e) => {
+    requireContext(e.sender);
+    return getDatabase().listSiteZoom();
+  });
+
+  ipcMain.handle(IPC.SITE_ZOOM_RESET, (e, host: unknown) => {
+    requireContext(e.sender);
+    assertString(host, 'host');
+    getDatabase().removeSiteZoom(bareHost(host));
+    // Open tabs on that site go back to 100% right away.
+    for (const ctx of getAllWindowContexts()) ctx.tabManager.applySavedZoomToOpenTabs();
+  });
+
+  ipcMain.handle(IPC.SPELLCHECK_LANGUAGES, (e) => {
+    requireContext(e.sender);
+    return session.defaultSession.availableSpellCheckerLanguages;
+  });
+
+  ipcMain.handle(IPC.PAGE_READER, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    return tabManager.toggleReader(id);
+  });
+
+  // ---- Updates (opt-in; only contacts the address the user configured) ----
+  ipcMain.handle(IPC.UPDATE_STATUS, (e) => {
+    requireContext(e.sender);
+    return updates.status();
+  });
+  ipcMain.handle(IPC.UPDATE_CHECK, (e) => {
+    requireContext(e.sender);
+    return updates.check();
+  });
+  ipcMain.handle(IPC.UPDATE_INSTALL, (e) => {
+    requireContext(e.sender);
+    updates.install();
+  });
+
+  // ---- Local AI helper (Ollama on this computer only) ----
+  ipcMain.handle(IPC.AI_STATUS, (e) => {
+    requireContext(e.sender);
+    return ai.status();
+  });
+  ipcMain.handle(IPC.AI_CHAT, async (e, id: unknown, model: unknown, messages: unknown, usePage: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    assertString(model, 'model');
+    if (id.length > 64 || model.length > 200) throw new Error('DASH: invalid request');
+    if (!Array.isArray(messages) || messages.length === 0 || messages.length > 40) throw new Error('DASH: invalid messages');
+    const clean = messages.map((m) => {
+      if (!m || (m.role !== 'user' && m.role !== 'assistant') || typeof m.content !== 'string' || m.content.length > 20000) {
+        throw new Error('DASH: invalid message');
+      }
+      return { role: m.role as 'user' | 'assistant', content: m.content };
+    });
+    let page: { url: string; title: string; text: string } | null = null;
+    if (usePage === true) {
+      const info = tabManager.activePageForAi();
+      if (info) page = { url: info.url, title: info.title, text: await ai.pageText(info.wc) };
+    }
+    // Fire and forget: output streams back as IPC.AI_EVENT messages.
+    void ai.chat(e.sender, IPC.AI_EVENT, id, model, clean, page);
+    return { usedPage: page !== null };
+  });
+  ipcMain.handle(IPC.AI_CANCEL, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertString(id, 'id');
+    ai.cancel(id);
+  });
+
+  // ---- Offline archive ----
+  ipcMain.handle(IPC.ARCHIVE_SAVE, async (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    const page = tabManager.pageForArchive(id);
+    if (!page) throw new Error('DASH: that page is not available');
+    const entry = await archive.save(page.wc, page.isPrivate);
+    onArchiveChanged();
+    return entry;
+  });
+  ipcMain.handle(IPC.ARCHIVE_LIST, (e, search: unknown) => {
+    requireContext(e.sender);
+    return archive.list(typeof search === 'string' ? search.slice(0, 200) : '');
+  });
+  ipcMain.handle(IPC.ARCHIVE_OPEN, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertNumber(id, 'id');
+    const url = archive.fileUrl(id);
+    if (!url) throw new Error('DASH: the saved file is missing');
+    tabManager.createTab(url);
+  });
+  ipcMain.handle(IPC.ARCHIVE_DELETE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    archive.delete(id);
+    onArchiveChanged();
+  });
+
+  // ---- Quick notes & side panel ----
+  ipcMain.handle(IPC.NOTES_LIST, (e, search: unknown) => {
+    requireContext(e.sender);
+    return getDatabase().listNotes(typeof search === 'string' ? search.slice(0, 200) : '');
+  });
+  ipcMain.handle(IPC.NOTES_SAVE, (e, id: unknown, body: unknown, url: unknown) => {
+    requireContext(e.sender);
+    if (typeof body !== 'string' || body.length > NOTE_MAX_LENGTH) throw new Error('DASH: note is too long');
+    if (id !== null && (typeof id !== 'number' || !Number.isInteger(id))) throw new Error('DASH: invalid note id');
+    if (url !== null && (typeof url !== 'string' || url.length > 2048)) throw new Error('DASH: invalid note link');
+    const saved = getDatabase().saveNote(id as number | null, body, url as string | null);
+    onNotesChanged();
+    return saved;
+  });
+  ipcMain.handle(IPC.NOTES_DELETE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    getDatabase().deleteNote(id);
+    onNotesChanged();
+  });
+  ipcMain.handle(IPC.SPLIT_OPEN, (e, partnerId: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    if (partnerId !== undefined && partnerId !== null) assertString(partnerId, 'partnerId');
+    tabManager.openSplit((partnerId as string | undefined) ?? undefined);
+  });
+  ipcMain.handle(IPC.LAYOUT_DIVIDER, (e, id: unknown, fraction: unknown) => {
+    if (id !== 'split' && id !== 'panel' && id !== 'devtools') throw new Error('DASH: unknown divider');
+    assertNumber(fraction, 'fraction');
+    requireContext(e.sender).tabManager.setDividerFraction(id, fraction);
+  });
+  ipcMain.handle(IPC.SPLIT_CLOSE, (e) => requireContext(e.sender).tabManager.closeSplit());
+  ipcMain.handle(IPC.SPLIT_SWAP, (e) => requireContext(e.sender).tabManager.swapSplit());
+  ipcMain.handle(IPC.SPLIT_RESET, (e) => requireContext(e.sender).tabManager.resetSplit());
+
+  ipcMain.handle(IPC.SIDEPANEL_TOGGLE, (e, kind: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    if (kind !== 'notes' && kind !== 'ai') throw new Error('DASH: unknown side panel');
+    tabManager.toggleSidePanel(kind);
+  });
+  ipcMain.handle(IPC.SIDEPANEL_CLOSE, (e) => {
+    requireContext(e.sender).tabManager.closeSidePanel();
+  });
+  ipcMain.handle(IPC.PAGE_URL_ACTIVE, (e) => requireContext(e.sender).tabManager.activeUrl());
+
+  ipcMain.handle(IPC.DEVTOOLS_TOGGLE, (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    tabManager.toggleDevTools(id);
+  });
+
+  // ---- History ----
+  ipcMain.handle(IPC.HISTORY_QUERY, (e, term: unknown) => {
+    requireContext(e.sender);
+    const search = typeof term === 'string' ? term : '';
+    return getDatabase().queryHistory(search);
+  });
+
+  ipcMain.handle(IPC.HISTORY_DELETE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    getDatabase().deleteHistoryEntry(id);
+  });
+
+  ipcMain.handle(IPC.HISTORY_CLEAR, (e) => {
+    requireContext(e.sender);
+    getDatabase().clearHistory();
+  });
+
+  // ---- Bookmarks ----
+  ipcMain.handle(IPC.BOOKMARK_ADD, (e, url: unknown, title: unknown, faviconUrl?: unknown) => {
+    requireContext(e.sender);
+    assertString(url, 'url');
+    assertString(title, 'title');
+    if (faviconUrl !== undefined && faviconUrl !== null) assertString(faviconUrl, 'faviconUrl');
+    const entry = getDatabase().addBookmark(url, title, null, (faviconUrl as string | undefined) ?? null);
+    onBookmarksChanged();
+    return entry;
+  });
+
+  ipcMain.handle(IPC.BOOKMARK_MOVE, (e, id: unknown, beforeId: unknown, folder: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    if (beforeId !== null) assertNumber(beforeId, 'beforeId');
+    let name: string | null | undefined;
+    if (folder === undefined) name = undefined;
+    else if (folder === null) name = null;
+    else {
+      assertString(folder, 'folder');
+      if (folder.length > 200) throw new Error('DASH: folder name too long');
+      name = folder.trim() || null;
+    }
+    getDatabase().moveBookmark(id, beforeId as number | null, name);
+    onBookmarksChanged();
+  });
+
+  ipcMain.handle(IPC.BOOKMARK_SET_FOLDER, (e, id: unknown, folder: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    if (folder !== null) {
+      assertString(folder, 'folder');
+      if (folder.length > 200) throw new Error('DASH: folder name too long');
+    }
+    const name = typeof folder === 'string' ? folder.trim() : null;
+    getDatabase().setBookmarkFolder(id, name ? name : null);
+    onBookmarksChanged();
+  });
+
+  const browserImporter = new BrowserImporter();
+  ipcMain.handle(IPC.IMPORT_DETECT, (e) => {
+    requireContext(e.sender);
+    return browserImporter.detect();
+  });
+  ipcMain.handle(IPC.IMPORT_RUN, (e, sourceId: unknown, options: unknown) => {
+    requireContext(e.sender);
+    assertString(sourceId, 'sourceId');
+    const o = options as { bookmarks?: unknown; history?: unknown } | null;
+    if (!o || typeof o.bookmarks !== 'boolean' || typeof o.history !== 'boolean') {
+      throw new Error('DASH: invalid import options');
+    }
+    const result = browserImporter.run(sourceId, { bookmarks: o.bookmarks, history: o.history });
+    onBookmarksChanged();
+    return result;
+  });
+
+  ipcMain.handle(IPC.BOOKMARK_REMOVE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    getDatabase().removeBookmark(id);
+    onBookmarksChanged();
+  });
+
+  ipcMain.handle(IPC.BOOKMARK_LIST, (e) => {
+    requireContext(e.sender);
+    return getDatabase().listBookmarks();
+  });
+
+  const bookmarksIO = new BookmarksIO();
+  const backupService = new BackupService(passwordManager);
+
+  ipcMain.handle(IPC.BACKUP_EXPORT, async (e, passphrase: unknown, includePasswords: unknown) => {
+    const { win } = requireContext(e.sender);
+    if (typeof passphrase !== 'string' || passphrase.length > 512) throw new Error('DASH: invalid passphrase');
+    return backupService.export(win, passphrase, includePasswords === true);
+  });
+
+  ipcMain.handle(IPC.BACKUP_IMPORT, async (e, passphrase: unknown) => {
+    const { win } = requireContext(e.sender);
+    if (typeof passphrase !== 'string' || passphrase.length > 512) throw new Error('DASH: invalid passphrase');
+    const result = await backupService.import(win, passphrase);
+    if (result) {
+      onSettingsChanged(getDatabase().getAllSettings());
+      onBookmarksChanged();
+    }
+    return result;
+  });
+
+  ipcMain.handle(IPC.BOOKMARKS_EXPORT, async (e) => {
+    const { win } = requireContext(e.sender);
+    return bookmarksIO.export(win);
+  });
+
+  ipcMain.handle(IPC.BOOKMARKS_IMPORT, async (e) => {
+    const { win } = requireContext(e.sender);
+    const result = await bookmarksIO.import(win);
+    onBookmarksChanged();
+    return result;
+  });
+
+  // ---- Suggestions ----
+  ipcMain.handle(IPC.SUGGESTIONS_QUERY, (e, term: unknown) => {
+    requireContext(e.sender);
+    const search = typeof term === 'string' ? term : '';
+    return getDatabase().querySuggestions(search);
+  });
+
+  ipcMain.handle(IPC.SUGGESTIONS_WEB, (e, term: unknown, isPrivate: unknown) => {
+    requireContext(e.sender);
+    const settings = getDatabase().getAllSettings();
+    // Private tabs never send what you type to a search engine from outside the tunnel.
+    if (!settings.searchSuggestions || isPrivate === true || typeof term !== 'string') return [];
+    return fetchWebSuggestions(settings.searchEngine, term);
+  });
+
+  // ---- Downloads ----
+  ipcMain.handle(IPC.DOWNLOAD_LIST, (e) => {
+    requireContext(e.sender);
+    return getDatabase().listDownloads();
+  });
+
+  ipcMain.handle(IPC.DOWNLOAD_CANCEL, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    downloadManager.cancel(id);
+  });
+
+  ipcMain.handle(IPC.DOWNLOAD_PAUSE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    downloadManager.pause(id);
+  });
+
+  ipcMain.handle(IPC.DOWNLOAD_RESUME, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    downloadManager.resume(id);
+  });
+
+  ipcMain.handle(IPC.DOWNLOAD_REMOVE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    getDatabase().removeDownloadRecord(id);
+  });
+
+  ipcMain.handle(IPC.DOWNLOAD_OPEN_FILE, (e, savePath: unknown) => {
+    requireContext(e.sender);
+    assertString(savePath, 'savePath');
+    downloadManager.openFile(savePath);
+  });
+
+  ipcMain.handle(IPC.DOWNLOAD_SHOW_IN_FOLDER, (e, savePath: unknown) => {
+    requireContext(e.sender);
+    assertString(savePath, 'savePath');
+    downloadManager.showInFolder(savePath);
+  });
+
+  ipcMain.handle(IPC.DOWNLOAD_START_DRAG, (e, savePath: unknown) => {
+    requireContext(e.sender);
+    assertString(savePath, 'savePath');
+    // Real OS-level drag-out: lets the user drag a completed download
+    // straight from the panel onto the desktop or another app, exactly
+    // like dragging a file out of Chrome's or Finder's download tray.
+    e.sender.startDrag({ file: savePath, icon: nativeImage.createFromPath(dragIconPath) });
+  });
+
+  // ---- Passwords ----
+  ipcMain.handle(IPC.PASSWORD_ADD, (e, origin: unknown, username: unknown, password: unknown) => {
+    requireContext(e.sender);
+    assertString(origin, 'origin');
+    assertString(username, 'username');
+    assertString(password, 'password');
+    return passwordManager.add(origin, username, password);
+  });
+
+  ipcMain.handle(IPC.PASSWORD_LIST, (e) => {
+    requireContext(e.sender);
+    return passwordManager.list();
+  });
+
+  ipcMain.handle(IPC.PASSWORD_REVEAL, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    return passwordManager.reveal(id);
+  });
+
+  ipcMain.handle(IPC.PASSWORD_REMOVE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    passwordManager.remove(id);
+  });
+
+  ipcMain.handle(IPC.PASSWORD_GENERATE, (e, length: unknown) => {
+    requireContext(e.sender);
+    return passwordManager.generate(typeof length === 'number' ? length : undefined);
+  });
+
+  ipcMain.handle(IPC.PASSWORDS_IMPORT_CSV, async (e) => {
+    const { win } = requireContext(e.sender);
+    const result = await dialog.showOpenDialog(win, {
+      title: 'Import passwords from a Chrome or Edge CSV export',
+      properties: ['openFile'],
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const stat = await fs.promises.stat(result.filePaths[0]);
+    if (stat.size > 20 * 1024 * 1024) throw new Error('DASH: that file is too large to be a password export.');
+    const parsed = parsePasswordCsv(await fs.promises.readFile(result.filePaths[0], 'utf8'));
+    if (parsed.error) throw new Error(parsed.error);
+    const { imported, alreadySaved } = passwordManager.importLogins(parsed.logins);
+    return { imported, alreadySaved, invalid: parsed.invalid };
+  });
+
+  ipcMain.handle(IPC.PASSWORD_SAVE_PROMPT_RESPOND, (e, promptId: unknown, save: unknown) => {
+    requireContext(e.sender);
+    assertString(promptId, 'promptId');
+    if (typeof save !== 'boolean') throw new Error('DASH: invalid value for "save"');
+    respondToLoginSavePrompt(promptId, save);
+  });
+
+  // ---- Permissions ----
+  ipcMain.handle(IPC.PERMISSION_LIST, (e) => {
+    requireContext(e.sender);
+    return getDatabase().listPermissions();
+  });
+
+  const KNOWN_PERMISSIONS = ['notifications', 'geolocation', 'camera', 'microphone', 'clipboard-read'] as const;
+
+  ipcMain.handle(IPC.PERMISSION_SET, (e, origin: unknown, permission: unknown, decision: unknown) => {
+    requireContext(e.sender);
+    assertString(origin, 'origin');
+    assertString(permission, 'permission');
+    if (!(KNOWN_PERMISSIONS as readonly string[]).includes(permission)) {
+      throw new Error(`DASH: unknown permission "${permission}"`);
+    }
+    if (decision !== 'granted' && decision !== 'denied') throw new Error('DASH: invalid permission decision');
+    getDatabase().setPermissionDecision(origin, permission as (typeof KNOWN_PERMISSIONS)[number], decision as PermissionDecision);
+  });
+
+  ipcMain.handle(IPC.PERMISSION_REMOVE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertNumber(id, 'id');
+    getDatabase().removePermission(id);
+  });
+
+  ipcMain.handle(IPC.PERMISSION_REQUEST_RESPOND, (e, requestId: unknown, decision: unknown) => {
+    requireContext(e.sender);
+    assertString(requestId, 'requestId');
+    if (decision !== 'granted' && decision !== 'denied') throw new Error('DASH: invalid permission decision');
+    permissionManager.respond(requestId, decision as PermissionDecision);
+  });
+
+  // ---- Settings ----
+  ipcMain.handle(IPC.VPN_GET_STATE, (e) => {
+    requireContext(e.sender);
+    return vpn.getState();
+  });
+  ipcMain.handle(IPC.VPN_SET_CONFIG, (e, config: unknown, password: unknown) => {
+    requireContext(e.sender);
+    const pw = password === null ? undefined : password;
+    if (pw !== undefined && typeof pw !== 'string') throw new Error('DASH: invalid password');
+    if (typeof pw === 'string' && pw.length > 1024) throw new Error('DASH: the password is too long');
+    return vpn.setConfig(config, pw);
+  });
+  ipcMain.handle(IPC.VPN_CONNECT, (e) => {
+    requireContext(e.sender);
+    return vpn.connect();
+  });
+  ipcMain.handle(IPC.VPN_DISCONNECT, (e) => {
+    requireContext(e.sender);
+    return vpn.disconnect();
+  });
+  ipcMain.handle(IPC.VPN_TEST, (e) => {
+    requireContext(e.sender);
+    return vpn.test();
+  });
+  ipcMain.handle(IPC.VPN_CHECK_IP, (e) => {
+    requireContext(e.sender);
+    return vpn.checkIp();
+  });
+
+  ipcMain.handle(IPC.SETTINGS_GET_ALL, (e) => {
+    requireContext(e.sender);
+    return getDatabase().getAllSettings();
+  });
+
+  ipcMain.handle(IPC.SETTINGS_SET, (e, key: unknown, value: unknown) => {
+    requireContext(e.sender);
+    assertString(key, 'key');
+    if (typeof value !== 'string') throw new Error('DASH: invalid setting value');
+
+    switch (key as keyof DashSettings) {
+      case 'searchEngine':
+        if (!(value in SEARCH_ENGINES)) throw new Error(`DASH: unknown search engine "${value}"`);
+        getDatabase().setSetting('searchEngine', value as DashSettings['searchEngine']);
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.refreshNewTabPages(); // the home page search box follows the new engine
+        break;
+      case 'theme':
+        if (!['dark', 'light', 'system'].includes(value)) throw new Error(`DASH: unknown theme "${value}"`);
+        getDatabase().setSetting('theme', value as DashSettings['theme']);
+        break;
+      case 'homepage':
+        assertString(value, 'homepage');
+        getDatabase().setSetting('homepage', value);
+        break;
+      case 'translateProvider':
+        if (value !== 'google' && value !== 'bing') throw new Error(`DASH: unknown translation service "${value}"`);
+        getDatabase().setSetting('translateProvider', value);
+        break;
+      case 'onboardingDone':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('onboardingDone', value === 'true');
+        break;
+      case 'autoUpdate':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('autoUpdate', value === 'true');
+        break;
+      case 'updateFeedUrl': {
+        if (typeof value !== 'string' || value.length > 500) throw new Error('DASH: invalid update address');
+        const v = value.trim();
+        if (v !== '' && !/^https:\/\/[^\s/]+(\/\S*)?$/i.test(v)) throw new Error('DASH: the update address must start with https://');
+        getDatabase().setSetting('updateFeedUrl', v);
+        break;
+      }
+      case 'devToolsDock':
+        if (value !== 'right' && value !== 'bottom' && value !== 'window') throw new Error(`DASH: unknown DevTools position "${value}"`);
+        getDatabase().setSetting('devToolsDock', value);
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.layoutActiveView();
+        break;
+      case 'startupBehavior':
+        if (!['homepage', 'restore'].includes(value)) throw new Error(`DASH: unknown startup behavior "${value}"`);
+        getDatabase().setSetting('startupBehavior', value as DashSettings['startupBehavior']);
+        break;
+      case 'sleepingTabsEnabled':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('sleepingTabsEnabled', value === 'true');
+        break;
+      case 'adBlockingEnabled':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('adBlockingEnabled', value === 'true');
+        break;
+      case 'trackerBlockingEnabled':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('trackerBlockingEnabled', value === 'true');
+        break;
+      case 'sendPrivacySignals':
+      case 'blockThirdPartyCookies':
+      case 'stripTrackingParams':
+      case 'fingerprintProtection':
+      case 'clearHistoryOnExit':
+      case 'clearSiteDataOnExit':
+      case 'spellCheckEnabled':
+      case 'highContrast':
+      case 'reduceMotion':
+      case 'alwaysShowFocus':
+      case 'searchSuggestions':
+      case 'privateAutoVpn':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting(key as 'sendPrivacySignals', value === 'true');
+        break;
+      case 'defaultPageZoom': {
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 100 || n > 300) throw new Error('DASH: page zoom must be between 100 and 300 percent');
+        getDatabase().setSetting('defaultPageZoom', n);
+        // Open tabs without their own saved zoom move to the new default right away.
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.applySavedZoomToOpenTabs();
+        break;
+      }
+      case 'spellCheckLanguages': {
+        // A short list of language tags such as "en-US,de"; anything else is refused.
+        const tags = value.split(',').map((t) => t.trim()).filter(Boolean);
+        if (tags.length > 6 || tags.some((t) => !/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(t))) throw new Error('DASH: invalid spell-check language list');
+        getDatabase().setSetting('spellCheckLanguages', tags.join(','));
+        break;
+      }
+      case 'dohMode':
+        if (!['off', 'automatic', 'secure'].includes(value)) throw new Error(`DASH: invalid DNS mode "${value}"`);
+        getDatabase().setSetting('dohMode', value as DashSettings['dohMode']);
+        break;
+      case 'dohProvider':
+        if (!(value in DOH_PROVIDERS)) throw new Error(`DASH: unknown DNS provider "${value}"`);
+        getDatabase().setSetting('dohProvider', value as DashSettings['dohProvider']);
+        break;
+      case 'verticalTabs':
+      case 'verticalTabsCollapsed':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting(key as 'verticalTabs' | 'verticalTabsCollapsed', value === 'true');
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.layoutActiveView();
+        break;
+      case 'showBookmarksBar':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('showBookmarksBar', value === 'true');
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.layoutActiveView();
+        break;
+      case 'newTabCustomCss':
+        if (typeof value !== 'string' || value.length > NEWTAB_CSS_MAX_LENGTH) {
+          throw new Error(`DASH: custom CSS must be text up to ${NEWTAB_CSS_MAX_LENGTH} characters`);
+        }
+        getDatabase().setSetting('newTabCustomCss', value);
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.refreshNewTabPages();
+        break;
+      case 'newTabCustomCssEnabled':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('newTabCustomCssEnabled', value === 'true');
+        for (const ctx of getAllWindowContexts()) ctx.tabManager.refreshNewTabPages();
+        break;
+      case 'neverSleepHosts':
+      case 'blockingOffHosts':
+      case 'keepSiteDataHosts':
+        if (typeof value !== 'string' || value.length > HOST_LIST_MAX_LENGTH) {
+          throw new Error(`DASH: site list must be text up to ${HOST_LIST_MAX_LENGTH} characters`);
+        }
+        getDatabase().setSetting(key as 'neverSleepHosts', value);
+        break;
+      case 'appCustomCss':
+        if (typeof value !== 'string' || value.length > APP_CSS_MAX_LENGTH) {
+          throw new Error(`DASH: custom CSS must be text up to ${APP_CSS_MAX_LENGTH} characters`);
+        }
+        getDatabase().setSetting('appCustomCss', value);
+        break;
+      case 'appCustomCssEnabled':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('appCustomCssEnabled', value === 'true');
+        break;
+      case 'httpsOnlyMode':
+        if (value !== 'true' && value !== 'false') throw new Error(`DASH: invalid boolean "${value}"`);
+        getDatabase().setSetting('httpsOnlyMode', value === 'true');
+        break;
+      default:
+        throw new Error(`DASH: unknown setting "${key}"`);
+    }
+    onSettingsChanged(getDatabase().getAllSettings());
+  });
+
+  ipcMain.handle(IPC.SETTINGS_RESET, (e) => {
+    requireContext(e.sender);
+    getDatabase().resetSettings();
+    onSettingsChanged(getDatabase().getAllSettings());
+  });
+
+  // ---- Blocking stats ----
+  ipcMain.handle(IPC.BLOCK_STATS_GET, (e) => {
+    requireContext(e.sender);
+    return tracker.getStats();
+  });
+  ipcMain.handle(IPC.BLOCK_STATS_RESET, (e) => {
+    requireContext(e.sender);
+    tracker.reset();
+  });
+
+  // ---- Privacy: Clear browsing data ----
+  ipcMain.handle(
+    IPC.PRIVACY_CLEAR_BROWSING_DATA,
+    async (e, options: unknown) => {
+      requireContext(e.sender);
+      const opts =
+        options && typeof options === 'object'
+          ? (options as { history?: boolean; cache?: boolean; cookies?: boolean; downloads?: boolean })
+          : {};
+
+      const targetSession = session.defaultSession;
+
+      if (opts.cache) {
+        // This is also the real fix for Chromium disk-cache corruption
+        // errors ("Critical error found -8", "No file for <hash>") — those
+        // happen when the cache directory gets partially written (e.g. the
+        // disk ran out of space mid-write) and Chromium can't reconcile its
+        // index with what's actually on disk. clearCache() wipes and
+        // rebuilds it cleanly rather than trying to repair it in place.
+        await targetSession.clearCache();
+      }
+      if (opts.cookies) {
+        await targetSession.clearStorageData({
+          storages: ['cookies', 'localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage'],
+        });
+      }
+      if (opts.history) {
+        getDatabase().clearHistory();
+      }
+      if (opts.downloads) {
+        for (const d of getDatabase().listDownloads()) {
+          getDatabase().removeDownloadRecord(d.id);
+        }
+      }
+    }
+  );
+
+  // ---- Extensions ----
+  ipcMain.handle(IPC.EXTENSIONS_LOAD, async (e) => {
+    const { win } = requireContext(e.sender);
+    return extensionManager.loadFromPicker(win);
+  });
+
+  ipcMain.handle(IPC.EXTENSIONS_INSTALL_STORE, async (e, input: unknown) => {
+    const { win } = requireContext(e.sender);
+    assertString(input, 'input');
+    return extensionManager.installFromWebStore(win, input.slice(0, 600));
+  });
+
+  ipcMain.handle(IPC.PAGE_TRANSLATE, async (e, id: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    return tabManager.translatePage(id);
+  });
+
+  ipcMain.handle(IPC.EXTENSIONS_LIST, (e) => {
+    requireContext(e.sender);
+    return extensionManager.list();
+  });
+
+  ipcMain.handle(IPC.EXTENSIONS_SET_PINNED, (e, extensionId: unknown, pinned: unknown) => {
+    requireContext(e.sender);
+    assertString(extensionId, 'extensionId');
+    if (typeof pinned !== 'boolean') throw new Error('DASH: pinned must be true or false');
+    getDatabase().setExtensionPinned(extensionId, pinned);
+  });
+
+  ipcMain.handle(IPC.EXTENSIONS_OPEN, (e, extensionId: unknown, anchor: unknown) => {
+    const { win, tabManager } = requireContext(e.sender);
+    assertString(extensionId, 'extensionId');
+    const a = anchor as { x?: unknown; y?: unknown; width?: unknown; height?: unknown } | null;
+    if (!a || ![a.x, a.y, a.width, a.height].every((n) => typeof n === 'number' && Number.isFinite(n))) throw new Error('DASH: invalid anchor');
+    return extensionManager.open(win, extensionId, a as { x: number; y: number; width: number; height: number }, (url) => tabManager.createTab(url));
+  });
+
+  ipcMain.handle(IPC.EXTENSIONS_REMOVE, (e, extensionId: unknown) => {
+    requireContext(e.sender);
+    assertString(extensionId, 'extensionId');
+    extensionManager.remove(extensionId);
+  });
+
+  // ---- Task Manager ----
+  ipcMain.handle(IPC.TASK_MANAGER_SNAPSHOT, (e) => {
+    requireContext(e.sender);
+    const contexts = getAllWindowContexts();
+
+    const labelForWebContentsId = (webContentsId: number): string | null => {
+      for (const { tabManager } of contexts) {
+        const tabId = tabManager.findTabIdByWebContentsId(webContentsId);
+        if (tabId) return tabManager.getTabTitle(tabId);
+      }
+      return null;
+    };
+
+    // Electron's ProcessMetric doesn't carry a webContents list itself —
+    // the real way to correlate a process to the tab(s) running in it is
+    // webContents.getAllWebContents(), matched by OS process id.
+    const allWebContents = electronWebContents.getAllWebContents();
+
+    return app.getAppMetrics().map((metric) => {
+      let label: string = metric.type;
+      if (metric.type === 'Tab') {
+        const owned = allWebContents.filter((wc) => {
+          try {
+            return wc.getOSProcessId() === metric.pid;
+          } catch {
+            return false;
+          }
+        });
+        const matched = owned.map((wc) => labelForWebContentsId(wc.id)).find((l): l is string => !!l);
+        if (matched) label = matched;
+      }
+      return {
+        pid: metric.pid,
+        type: metric.type,
+        label,
+        memoryMB: Math.round((metric.memory.workingSetSize / 1024) * 10) / 10,
+        cpuPercent: Math.round(metric.cpu.percentCPUUsage * 10) / 10,
+      };
+    });
+  });
+
+  ipcMain.handle(IPC.TASK_MANAGER_END_PROCESS, (e, pid: unknown) => {
+    requireContext(e.sender);
+    if (typeof pid !== 'number') throw new Error('DASH: invalid pid');
+
+    // Only ever end an actual TAB process, and only via our own tab
+    // lifecycle (closeTab) rather than an OS-level kill — force-killing an
+    // arbitrary Chromium process (GPU, network service, browser process
+    // itself) is how you crash the whole app, not "end a task."
+    const metric = app.getAppMetrics().find((m) => m.pid === pid);
+    if (!metric || metric.type !== 'Tab') return;
+
+    const owned = electronWebContents.getAllWebContents().filter((wc) => {
+      try {
+        return wc.getOSProcessId() === pid;
+      } catch {
+        return false;
+      }
+    });
+
+    for (const wc of owned) {
+      for (const { tabManager } of getAllWindowContexts()) {
+        const tabId = tabManager.findTabIdByWebContentsId(wc.id);
+        if (tabId) {
+          tabManager.closeTab(tabId);
+          return;
+        }
+      }
+    }
+  });
+
+  // ---- Profiles ----
+  ipcMain.handle(IPC.PROFILES_LIST, (e) => {
+    requireContext(e.sender);
+    return profileManager.list();
+  });
+  ipcMain.handle(IPC.PROFILE_CREATE, (e, name: unknown) => {
+    requireContext(e.sender);
+    assertString(name, 'name');
+    return profileManager.create(name);
+  });
+  ipcMain.handle(IPC.PROFILE_RENAME, (e, id: unknown, name: unknown) => {
+    requireContext(e.sender);
+    assertString(id, 'id');
+    assertString(name, 'name');
+    profileManager.rename(id, name);
+  });
+  ipcMain.handle(IPC.PROFILE_DELETE, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertString(id, 'id');
+    profileManager.remove(id);
+  });
+  ipcMain.handle(IPC.PROFILE_OPEN, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertString(id, 'id');
+    profileManager.open(id);
+  });
+
+  // ---- Containers ----
+  ipcMain.handle(IPC.CONTAINERS_LIST, (e) => {
+    requireContext(e.sender);
+    return containerManager.list();
+  });
+  ipcMain.handle(IPC.CONTAINER_CREATE, (e, name: unknown, color: unknown) => {
+    requireContext(e.sender);
+    assertString(name, 'name');
+    assertString(color, 'color');
+    const created = containerManager.create(name, color);
+    onContainersChanged();
+    return created;
+  });
+  ipcMain.handle(IPC.CONTAINER_UPDATE, (e, id: unknown, name: unknown, color: unknown) => {
+    requireContext(e.sender);
+    assertString(id, 'id');
+    assertString(name, 'name');
+    assertString(color, 'color');
+    containerManager.update(id, name, color);
+    onContainersChanged();
+    for (const ctx of getAllWindowContexts()) ctx.tabManager.refreshContainerLabels(id);
+  });
+  ipcMain.handle(IPC.CONTAINER_DELETE, async (e, id: unknown) => {
+    requireContext(e.sender);
+    assertString(id, 'id');
+    for (const ctx of getAllWindowContexts()) ctx.tabManager.closeContainerTabs(id);
+    await containerManager.remove(id);
+    onContainersChanged();
+  });
+
+  // ---- Window ----
+  ipcMain.handle(IPC.WINDOW_NEW, (e) => {
+    requireContext(e.sender);
+    createWindow();
+  });
+
+  // Move a tab into its own window. The page is re-opened there (it reloads: scroll position and form input are
+  // not carried over) and the original tab is closed. Private tabs and a window's only tab are refused.
+  ipcMain.handle(IPC.WINDOW_MOVE_TAB, (e, id: unknown, x: unknown, y: unknown) => {
+    const { tabManager } = requireContext(e.sender);
+    assertString(id, 'id');
+    const moving = tabManager.movableTab(id);
+    if (!moving) return false;
+    const at = typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y) ? { x: x - 200, y: Math.max(0, y - 20) } : undefined;
+    createWindow([moving.url], at, { tabs: [{ pinned: false, group: null, container: moving.container }], groups: [] });
+    tabManager.closeTab(id);
+    return true;
+  });
+
+  ipcMain.handle(IPC.OVERLAY_PUSH, (e) => requireContext(e.sender).tabManager.pushOverlay());
+  ipcMain.handle(IPC.INTERNAL_PAGE_CHANGED, (e, page: unknown) => {
+    if (typeof page !== 'string' || !['history', 'downloads', 'bookmarks', 'settings', 'notes', 'archive', 'ai', 'websitelock'].includes(page)) {
+      throw new Error('DASH: unknown internal page');
+    }
+    requireContext(e.sender).tabManager.internalPageChanged(e.sender, page as InternalPageId);
+  });
+  ipcMain.handle(IPC.OVERLAY_COMMIT, (e) => {
+    requireContext(e.sender).tabManager.commitOverlay();
+  });
+  ipcMain.handle(IPC.WEBAPP_INSTALL, (e, tabId: unknown) => {
+    assertString(tabId, 'tabId');
+    return requireContext(e.sender).tabManager.installWebApp(tabId);
+  });
+  ipcMain.handle(IPC.WEBAPP_LIST, (e) => {
+    requireContext(e.sender);
+    return listWebApps().map(({ id, name, startUrl, installedAt }) => ({ id, name, startUrl, installedAt }));
+  });
+  ipcMain.handle(IPC.WEBAPP_LAUNCH, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertString(id, 'id');
+    return launchWebApp(id);
+  });
+  ipcMain.handle(IPC.WEBAPP_UNINSTALL, (e, id: unknown) => {
+    requireContext(e.sender);
+    assertString(id, 'id');
+    uninstallWebApp(id);
+  });
+  ipcMain.handle(IPC.OVERLAY_POP, (e) => {
+    requireContext(e.sender).tabManager.popOverlay();
+  });
+
+  ipcMain.handle(IPC.WINDOW_MINIMIZE, (e) => {
+    const { win } = requireContext(e.sender);
+    win.minimize();
+  });
+
+  ipcMain.handle(IPC.WINDOW_MAXIMIZE, (e) => {
+    const { win } = requireContext(e.sender);
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+  });
+
+  ipcMain.handle(IPC.WINDOW_CLOSE, (e) => {
+    const { win } = requireContext(e.sender);
+    win.close();
+  });
+}
