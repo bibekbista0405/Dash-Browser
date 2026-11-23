@@ -1,0 +1,54 @@
+<p class="lead">DASH is built so that the developer learns nothing about you. This policy covers the DASH apps and this website. It does not cover the websites you visit with DASH.</p>
+<p class="meta">Effective {{updated}}. Written by the developer, Bibek Bista, an independent developer in Nepal.</p>
+
+<h2 id="short">The short version</h2>
+<ul>
+  <li>DASH has <b>no telemetry, analytics, crash reporting or usage statistics</b>. It sends nothing about you or your use of the app to the developer or anyone else.</li>
+  <li>DASH has <b>no accounts and no sync service</b>. There is nothing to sign in to.</li>
+  <li>Your history, bookmarks, downloads list, settings, notes, saved pages and saved passwords stay <b>on your own device</b>.</li>
+  <li>This website sets <b>no cookies</b> and runs <b>no analytics</b>.</li>
+</ul>
+
+<h2 id="data">What DASH stores, and where</h2>
+<p>Browsing history, bookmarks, the downloads list, settings, notes, saved offline pages and saved passwords are stored on your device. On Windows that is the folder <code>%APPDATA%\DASH</code>. Saved passwords are encrypted with the operating system's secure storage. Backups you export are files that you choose where to save. DASH uploads none of this anywhere.</p>
+
+<h2 id="connections">Connections the desktop app makes by itself</h2>
+<p>Besides loading the sites you ask for, these are the only connections DASH for Windows makes. Each one is off by default, started by you, or goes to your own computer.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Feature</th><th>What is contacted</th><th>When</th></tr></thead>
+<tbody>
+<tr><td>Update check</td><td>The https address <b>you</b> enter under Settings, Updates</td><td>Only if you turn automatic updates on</td></tr>
+<tr><td>Secure DNS</td><td>The DNS provider you choose (Cloudflare by default when enabled)</td><td>Only if you turn Secure DNS on. Your DNS lookups then go to that provider</td></tr>
+<tr><td>VPN or proxy</td><td>The proxy server you configure</td><td>Only if you configure and turn it on</td></tr>
+<tr><td>Check my IP</td><td><code>api.ipify.org</code></td><td>Only when you press the button</td></tr>
+<tr><td>Translate page</td><td><code>translate.google.com</code>, with the page address</td><td>Only when you choose Translate. Google then sees that page address</td></tr>
+<tr><td>Search suggestions</td><td>Your chosen search engine (Google, DuckDuckGo, Bing or Brave), with the text you are typing, no cookies</td><td>Only while you type in the address bar or on the New Tab page, and only if Show search suggestions is on. Never from a private tab</td></tr>
+<tr><td>Install an extension from the Chrome Web Store</td><td><code>clients2.google.com</code></td><td>Only when you install an extension</td></tr>
+<tr><td>AI helper</td><td>A local Ollama server on your own computer (<code>127.0.0.1</code>)</td><td>Only when you use it. Nothing is sent to an online AI service</td></tr>
+</tbody></table></div>
+<p>Private tabs connect the VPN you set up (if that option is on) before they load anything, and wipe their cookies, storage and cache when the last private tab closes. A VPN changes who can see your traffic. It does not make you anonymous.</p>
+
+<h2 id="android">DASH for Android</h2>
+<p>DASH for Android follows the same rules: no telemetry, no accounts, no advertising IDs, and your data stays on the phone. Besides the sites you open, it can contact the search engine you choose (for results, and for suggestions while you type, never in Incognito) and Google Translate if you choose Translate. The app asks for permissions such as camera, microphone and location only so that websites you visit can ask for them, and each site still needs your approval. The Android app is newer than the desktop app and has been checked less. If you find it doing something not described here, please open an issue.</p>
+
+<h2 id="website">This website</h2>
+<ul>
+  <li>No cookies, no analytics, no advertising, no tracking pixels.</li>
+  <li>Your browser keeps a few small settings for you in its own storage: the light or dark choice, whether you have seen the intro this session, and whether you hid the download bar. They never leave your device.</li>
+  <li>The page asks <b>GitHub</b> (<code>api.github.com</code>) for the latest release, the file sizes, and public numbers such as stars. GitHub receives your IP address as part of that request and has its own privacy policy.</li>
+  <li>The page loads fonts from <b>Google Fonts</b>. Google receives your IP address as part of that request.</li>
+  <li>The Download buttons link straight to files on GitHub. The "what any website can read" section reads values from your own browser and shows them only to you. Nothing from it is sent anywhere.</li>
+  <li>Whoever hosts this site (for example Vercel) keeps its own technical server logs. The developer does not receive analytics from them.</li>
+</ul>
+
+<h2 id="third">Third parties</h2>
+<p>If you turn on Secure DNS, translate a page, install an extension, or use a search engine, the provider you chose receives the request described above and applies its own policy. DASH has no control over them.</p>
+
+<h2 id="rights">Your rights</h2>
+<p>The developer holds no personal data about DASH users, so there is nothing to request, correct or delete. Your data is in files on your device, and you can export or delete it from DASH or by removing the data folder.</p>
+
+<h2 id="children">Children</h2>
+<p>DASH collects no personal data from anyone, including children.</p>
+
+<h2 id="changes">Changes and contact</h2>
+<p>If this policy changes, the date at the top changes, and the full history is public in the project repository. Questions or concerns: <a href="https://github.com/{{site.repo}}/issues" rel="noopener">open an issue on GitHub</a>. The technical source of truth for the desktop connections is <a href="https://github.com/{{site.repo}}/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> in the repository.</p>

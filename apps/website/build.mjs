@@ -1,4 +1,4 @@
-// Builds the DASH website: template/index.tpl.html + content.json -> dist/index.html (one self-contained file).
+// Builds the DASH website: template/index.tpl.html + content.json -> public/index.html (one self-contained file).
 // Usage: node apps/website/build.mjs      (no dependencies)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -91,6 +91,9 @@ data.features.items.forEach((f) => { f.chips = f.chips.map((s) => ({ s })); });
 data.home.manifestoWords = data.home.manifesto.split(/\s+/).map((s) => ({ s }));
 data.home.how.items.forEach((h, i) => { h.artHtml = ART[h.art] ?? ''; h.n = String(i + 1).padStart(2, '0'); });
 data.intro.letters = [...data.site.name].map((s) => ({ s }));
+data.nav = data.nav.map((n) => ({ ...n, url: n.href ? n.href : '#' + n.page, hard: n.href ? '1' : '', docUrl: n.href ? n.href : 'index.html#' + n.page }));
+data.hero.trust = (data.hero.trust || []).map((s) => ({ s }));
+data.updated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 data._logo = logo();
 data._logoLoop = logo('loop');
 data._logoBuild = logo('build');
@@ -99,9 +102,80 @@ data._favicon = favicon;
 data._json = JSON.stringify({ repo: content.site.repo, thanks: content.thanks, rows: content.connections.rows, pages: Object.fromEntries(Object.entries(content.pages).map(([k, v]) => [k, v.kicker])), siteName: content.site.name }).replace(/</g, '\\u003c');
 
 const html = render(read('template/index.tpl.html'), { this: data, '@root': data });
-const out = path.join(here, 'dist');
+const out = path.join(here, 'public');
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'index.html'), html);
 fs.writeFileSync(path.join(out, 'content.json'), JSON.stringify(content, null, 2));
 fs.copyFileSync(path.join(here, 'template/admin.html'), path.join(out, 'admin.html'));
-console.log(`Built dist/index.html (${(html.length / 1024).toFixed(0)} KB), dist/admin.html and dist/content.json`);
+
+// ---- real pages: privacy, terms, security, docs, licenses, changelog, 404 ----
+const esc2 = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const inline = (t) => esc2(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" rel="noopener">$1</a>');
+const siteUrl = (process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : content.site.url || '')).replace(/\/$/, '');
+// the repository's own files are the source of truth; keep a snapshot so the site still builds if only this folder is checked out
+fs.mkdirSync(path.join(here, 'snapshot'), { recursive: true });
+const repoFile = (name) => {
+  const up = path.join(here, '..', '..', name), snap = path.join(here, 'snapshot', name);
+  if (fs.existsSync(up)) { const t = fs.readFileSync(up, 'utf8'); fs.writeFileSync(snap, t); return t; }
+  return fs.existsSync(snap) ? fs.readFileSync(snap, 'utf8') : '';
+};
+function changelogHtml(md) {
+  const out = []; let inList = false, id = 0;
+  for (const line of md.split(/\r?\n/)) {
+    let m;
+    if ((m = line.match(/^## (.+)/))) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h2 id="r${id++}">${inline(m[1])}</h2>`); }
+    else if ((m = line.match(/^[-*] (.+)/))) { if (!inList) { out.push('<ul>'); inList = true; } out.push(`<li>${inline(m[1])}</li>`); }
+    else if (line.trim() === '' && inList) { out.push('</ul>'); inList = false; }
+    else if (/^[^#\s-]/.test(line) && !/^(All notable|\[Keep|Changelog)/.test(line) && !line.startsWith('#') && !line.startsWith('[SemVer]') && !line.startsWith('versions follow')) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<p>${inline(line)}</p>`); }
+  }
+  if (inList) out.push('</ul>');
+  return out.join('\n');
+}
+function licensesBody() {
+  const tp = repoFile('THIRD_PARTY_NOTICES.md'); const rows = [...tp.matchAll(/^\| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]*) \|$/gm)].filter((m) => m[1].trim() !== 'Package' && !/^-+$/.test(m[1].trim()));
+  const sum = (tp.match(/\*\*(\d+) packages\.\*\* By license: ([^\n]+)/) || []);
+  const body = rows.map((m) => `<tr><td>${esc2(m[1].trim())}</td><td>${esc2(m[2].trim())}</td><td>${esc2(m[3].trim())}</td></tr>`).join('');
+  return `<p class="lead">DASH is free software under the GPL. It builds on other free software, each piece under its own licence.</p>
+<p class="meta">Updated ${data.updated}.</p>
+<h2 id="dash">DASH</h2>
+<p>DASH is licensed under <b>GPL-3.0-only</b>, copyright 2026 ${esc2(content.site.developer)}. Read the full text in the <a href="https://github.com/${content.site.repo}/blob/main/LICENSE" rel="noopener">LICENSE</a> file, or the <a href="https://www.gnu.org/licenses/gpl-3.0.html" rel="noopener">GNU site</a>. The complete source code is public at <a href="https://github.com/${content.site.repo}" rel="noopener">github.com/${content.site.repo}</a>, which is what the GPL asks of anyone who distributes the program.</p>
+<h2 id="electron">Electron and Chromium</h2>
+<p>DASH for Windows is built on Electron, which embeds Chromium. They are separate works with their own notices. After installing, find <code>LICENSE.electron.txt</code> and <code>LICENSES.chromium.html</code> in DASH's installed app folder.</p>
+<h2 id="packages">Packages inside DASH for Windows</h2>
+<p>${sum[1] ? `<b>${sum[1]} packages.</b> By licence: ${esc2(sum[2])}.` : 'The list below comes from the installed production dependencies.'} It is generated from the repository by <code>scripts/gen-third-party.mjs</code>.</p>
+<div class="tablewrap"><table><thead><tr><th>Package</th><th>Version</th><th>Licence</th></tr></thead><tbody>${body}</tbody></table></div>
+<h2 id="site">This website</h2>
+<p>The website's fonts are Bricolage Grotesque, Hanken Grotesk and JetBrains Mono, all under the SIL Open Font License 1.1, loaded from Google Fonts. The site's own code is part of the DASH repository under GPL-3.0.</p>`;
+}
+const pages = [
+  { file: 'privacy', title: 'Privacy policy', kicker: 'Legal', desc: 'What DASH and this website do with your data: nothing is sent to the developer, no accounts, no telemetry, and every connection is listed.' },
+  { file: 'terms', title: 'Terms of use', kicker: 'Legal', desc: 'The short terms for using DASH and this website. GPL-3.0 licence, no warranty, plain words.' },
+  { file: 'security', title: 'Security', kicker: 'Security', desc: 'How to report a vulnerability in DASH privately, what is in scope, and how to check what you download.' },
+  { file: 'docs', title: 'Documentation', kicker: 'Docs', desc: 'Install DASH, keyboard shortcuts, privacy tools, App Lock, backups and fixes for common problems.' },
+  { file: 'licenses', title: 'Licenses', kicker: 'Legal', desc: 'The GPL-3.0 licence of DASH and the licences of the software it builds on.', gen: licensesBody },
+  { file: 'changelog', title: 'Changelog', kicker: 'Releases', desc: 'Every change made to DASH, newest first.', gen: () => `<p class="lead">What changed in each milestone, newest first. The same list is in the repository.</p>${changelogHtml(repoFile('CHANGELOG.md'))}` },
+];
+const docTpl = read('template/doc.tpl.html');
+const urls = ['index.html'];
+for (const pg of pages) {
+  let body = pg.gen ? pg.gen() : render(read(`pages/${pg.file}.html`), { this: data, '@root': data });
+  const heads = [...body.matchAll(/<h2 id="([^"]+)">(.*?)<\/h2>/g)].filter((m, i) => pg.file !== 'changelog' || i < 40);
+  const toc = heads.map((m) => `<a href="#${m[1]}">${m[2].replace(/<[^>]+>/g, '')}</a>`).join('');
+  const navDoc = data.nav.map((n) => ({ ...n, cur: n.page === pg.file }));
+  const page = render(docTpl, { this: { ...data, nav: navDoc, doc: { ...pg, body, toc, canonical: siteUrl ? `${siteUrl}/${pg.file}` : '' } }, '@root': data });
+  fs.writeFileSync(path.join(out, `${pg.file}.html`), page);
+  urls.push(`${pg.file}.html`);
+}
+// 404
+const nf = render(docTpl, { this: { ...data, nav: data.nav.map((n) => ({ ...n })), doc: { title: 'Page not found', kicker: '404', desc: 'This page does not exist.', toc: '', body: '<p class="lead">That page is not here. It may have moved.</p><p><a class="btn-link" href="index.html">Go to the home page</a></p>' } }, '@root': data });
+fs.writeFileSync(path.join(out, '404.html'), nf);
+// static files (robots, manifest, icons...) copied as they are
+const pub = path.join(here, 'static');
+if (fs.existsSync(pub)) for (const f of fs.readdirSync(pub)) fs.copyFileSync(path.join(pub, f), path.join(out, f));
+if (siteUrl) {
+  const routes = ['', ...pages.map((p) => p.file)];
+  fs.writeFileSync(path.join(out, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${routes.map((r) => `  <url><loc>${siteUrl}/${r}</loc></url>`).join('\n')}\n</urlset>\n`);
+  fs.appendFileSync(path.join(out, 'robots.txt'), `\nSitemap: ${siteUrl}/sitemap.xml\n`);
+}
+console.log(`Built ${urls.length} pages + 404${siteUrl ? ' + sitemap for ' + siteUrl : ' (set SITE_URL to also write sitemap.xml)'}`);
+console.log(`Built public/index.html (${(html.length / 1024).toFixed(0)} KB), public/admin.html and public/content.json`);

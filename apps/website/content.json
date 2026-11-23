@@ -27,6 +27,11 @@
     {
       "label": "Questions",
       "page": "questions"
+    },
+    {
+      "label": "Docs",
+      "page": "docs",
+      "href": "docs.html"
     }
   ],
   "hero": {
@@ -38,7 +43,13 @@
     "lede": "DASH is a fast, free browser for Windows and Android. It blocks ads and trackers, sends nothing about you to anyone, and keeps your data on your own device.",
     "note": "Free and open source. No account.",
     "windowsLabel": "Download for Windows",
-    "androidLabel": "Download for Android"
+    "androidLabel": "Download for Android",
+    "trust": [
+      "Free, no ads",
+      "No account",
+      "Open source, GPL-3.0",
+      "Nothing sent to the developer"
+    ]
   },
   "ribbon": [
     "No telemetry",
@@ -262,11 +273,11 @@
     ]
   },
   "cta": {
-    "title": "Take your browsing back.",
-    "text": "Free. Open source. Yours."
+    "title": "The data a browser collects is hard to take back. Start by giving it none.",
+    "text": "Free. Open source. Yours. It takes about two minutes."
   },
   "footer": {
-    "text": "A privacy-first browser by Bibek Bista. Open source under GPL-3.0."
+    "text": "A privacy-first browser by Bibek Bista, an independent developer in Nepal. Open source under GPL-3.0."
   },
   "thanks": {
     "title": "Thank you for choosing DASH.",
@@ -379,6 +390,63 @@
       "kicker": "Questions",
       "title": "Ask away.",
       "sub": "Search the answers people look for first."
+    },
+    "docs": {
+      "kicker": "Docs",
+      "title": "Learn DASH in ten minutes.",
+      "sub": "Shortcuts, settings, privacy tools and fixes."
     }
+  },
+  "peek": {
+    "title": "This is what any website can read about you. Right now.",
+    "intro": "No click needed. Your browser hands this to every page you open, and trackers collect lists like it, then match them across sites. We read it here, in your own browser. This page sent none of it anywhere.",
+    "scan": "Scanning your browser",
+    "foot": "DASH stops known tracker hosts from loading at all, so those scripts never get to ask. It also sends the Global Privacy Control signal by default. No browser can promise you anonymity, and DASH does not."
+  },
+  "why": {
+    "title": "Why people switch",
+    "items": [
+      {
+        "art": "free",
+        "title": "Free, and no catch",
+        "text": "No account, no ads, no premium tier. DASH is open source under GPL-3.0, so nothing about it depends on selling your attention."
+      },
+      {
+        "art": "proof",
+        "title": "Check it, don't trust us",
+        "text": "Every connection DASH can make is listed in plain words, and the code is public. If we ever change that, the history shows it."
+      },
+      {
+        "art": "fast",
+        "title": "Ready in two minutes",
+        "text": "Install, pick a theme and a search engine, bring your bookmarks from a file or another browser, and go. Nothing to sign up for first."
+      }
+    ]
+  },
+  "switch": {
+    "title": "Switch in three steps",
+    "sub": "You can keep your old browser installed. Try DASH for a day and see.",
+    "items": [
+      {
+        "t": "Download",
+        "d": "Pick Windows or Android. The file comes straight from GitHub."
+      },
+      {
+        "t": "Open it",
+        "d": "On Windows you may see a warning because the build is not code-signed yet. The steps on the Download page show exactly what to click."
+      },
+      {
+        "t": "Bring your stuff",
+        "d": "On desktop, import bookmarks and more from another browser in Settings, or from a file on the welcome screen."
+      }
+    ]
+  },
+  "proof": {
+    "title": "Open by default",
+    "sub": "These numbers are read live from GitHub when you open this page. If GitHub can't be reached, they stay hidden.",
+    "stars": "Stars on GitHub",
+    "forks": "Forks",
+    "downloads": "Downloads of all releases",
+    "release": "Latest release"
   }
 }

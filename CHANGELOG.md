@@ -3,6 +3,18 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M87 - Website: smoother motion, docs and legal pages, Vercel
+- Smoother scrolling: one animation loop with cached positions and eased values, so parallax, the manifesto, the pinned scroller and the ribbon glide instead of jumping. Frame pacing in headless Chromium held at 60 fps during a scripted scroll.
+- Nav rewritten to be cheap to draw: no backdrop blur, transform-based states, no layout reads while scrolling.
+- Intro is truly centred (the logo starts at the exact screen centre and eases up as the wordmark arrives); measured at desktop and 390 px width.
+- Interactive hero: a live streak field that bends around the pointer and bursts when you click, headline letters that lift near the pointer, buttons that lean toward it.
+- New home sections: "what any website can read about you" (values read from the visitor's own browser, never sent), why people switch, switch in three steps, and a live GitHub strip (stars, forks, downloads, latest release; hidden if GitHub does not answer or the number is zero). A dismissible download bar appears after the hero and picks Windows or Android from the visitor's system.
+- Real pages: Privacy policy, Terms of use, Security, Documentation (install, shortcuts, privacy tools, App Lock, backups, fixes), Licenses and Changelog (both generated from the repository files), and a 404. They share the streak-wipe transition with the main site.
+- Vercel-ready: `vercel.json` (build, output folder, security headers, clean URLs), `package.json`, `public/` for static files, sitemap and canonical links from `SITE_URL` or Vercel's production URL, deploy steps in `apps/website/README.md`.
+- Fixed: the smoothed scroll value shared a name with the cursor element and broke the parallax.
+- The built site now lives in `apps/website/public/` (index.html and every page, committed), so Vercel can host the folder as it is with no build step. Static source files moved to `apps/website/static/`.
+- Not tested: real phones, Safari, a live Vercel deploy. The privacy policy and terms were written by the developer without a lawyer.
+
 ## M86 - Website: multi-page, intro, scroll motion
 - Six dedicated pages (Home, Connections, Features, Playground, Download, Questions) with hash routes, so links and the back button work.
 - Page changes use a skewed streak-wipe transition with the page name; the same wipe closes the intro.

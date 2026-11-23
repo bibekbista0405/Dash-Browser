@@ -1,0 +1,10 @@
+{
+  "name": "DASH Browser",
+  "short_name": "DASH",
+  "description": "A free, open-source browser for Windows and Android with no telemetry and no accounts.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "icons": [{ "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }]
+}

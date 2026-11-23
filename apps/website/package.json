@@ -1,0 +1,12 @@
+{
+  "name": "dash-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The DASH Browser website. Static, no dependencies.",
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "build": "node build.mjs",
+    "preview": "node build.mjs && npx --yes serve public"
+  },
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,92 @@
+<p class="lead">Everything you need to install DASH, find your way around, and fix the common problems.</p>
+<p class="meta">Written for DASH on Windows and Android. Updated {{updated}}.</p>
+
+<h2 id="install">Install</h2>
+<h3>Windows</h3>
+<ol>
+  <li>Download the installer (or the portable file, which needs no install) from the <a href="index.html#get">Download page</a>. Needs Windows 10 or 11, 64-bit.</li>
+  {{#each steps.windows.items}}<li>{{s}}</li>{{/each}}
+</ol>
+<h3>Android</h3>
+<ol>
+  <li>Download the .apk from the <a href="index.html#get">Download page</a>.</li>
+  {{#each steps.android.items}}<li>{{s}}</li>{{/each}}
+</ol>
+<p>macOS, Linux and iOS are not available yet.</p>
+
+<h2 id="start">First run</h2>
+<p>DASH opens a short welcome where you choose a theme and a search engine. On desktop you can also import bookmarks from a file on that screen. Later, <b>Settings</b> has the same choices and more: search suggestions, secure DNS, VPN or proxy, security, backups and import from another browser.</p>
+
+<h2 id="shortcuts">Keyboard shortcuts (desktop)</h2>
+<p>Press <kbd>Ctrl</kbd> + <kbd>/</kbd> inside DASH to see this list any time.</p>
+<div class="cols">
+<div><h3>Tabs</h3><dl class="keys">
+<div><dt>New tab</dt><dd><kbd>Ctrl</kbd>+<kbd>T</kbd></dd></div>
+<div><dt>Close tab</dt><dd><kbd>Ctrl</kbd>+<kbd>W</kbd></dd></div>
+<div><dt>Reopen closed tab</dt><dd><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></dd></div>
+<div><dt>Next / previous tab</dt><dd><kbd>Ctrl</kbd>+<kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd></dd></div>
+<div><dt>Go to tab 1 to 8 / last</dt><dd><kbd>Ctrl</kbd>+<kbd>1</kbd>…<kbd>8</kbd> / <kbd>Ctrl</kbd>+<kbd>9</kbd></dd></div>
+<div><dt>New window</dt><dd><kbd>Ctrl</kbd>+<kbd>N</kbd></dd></div>
+<div><dt>New private tab</dt><dd><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd></dd></div>
+</dl></div>
+<div><h3>Page</h3><dl class="keys">
+<div><dt>Focus address bar</dt><dd><kbd>Ctrl</kbd>+<kbd>L</kbd> · <kbd>F6</kbd> · <kbd>Alt</kbd>+<kbd>D</kbd></dd></div>
+<div><dt>Reload</dt><dd><kbd>Ctrl</kbd>+<kbd>R</kbd> · <kbd>F5</kbd></dd></div>
+<div><dt>Find in page</dt><dd><kbd>Ctrl</kbd>+<kbd>F</kbd> · <kbd>F3</kbd></dd></div>
+<div><dt>Back / forward</dt><dd><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>Alt</kbd>+<kbd>→</kbd></dd></div>
+<div><dt>Home</dt><dd><kbd>Alt</kbd>+<kbd>Home</kbd></dd></div>
+<div><dt>Zoom in / out / reset</dt><dd><kbd>Ctrl</kbd>+<kbd>+</kbd> / <kbd>−</kbd> / <kbd>0</kbd></dd></div>
+<div><dt>Full screen</dt><dd><kbd>F11</kbd></dd></div>
+<div><dt>Print</dt><dd><kbd>Ctrl</kbd>+<kbd>P</kbd></dd></div>
+<div><dt>Save page</dt><dd><kbd>Ctrl</kbd>+<kbd>S</kbd></dd></div>
+<div><dt>Developer tools</dt><dd><kbd>F12</kbd></dd></div>
+</dl></div>
+<div><h3>DASH</h3><dl class="keys">
+<div><dt>Bookmark this page</dt><dd><kbd>Ctrl</kbd>+<kbd>D</kbd></dd></div>
+<div><dt>Bookmarks</dt><dd><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd></dd></div>
+<div><dt>History</dt><dd><kbd>Ctrl</kbd>+<kbd>H</kbd></dd></div>
+<div><dt>Downloads</dt><dd><kbd>Ctrl</kbd>+<kbd>J</kbd></dd></div>
+<div><dt>AI helper</dt><dd><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></dd></div>
+<div><dt>Lock DASH</dt><dd><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd></dd></div>
+<div><dt>Show bookmarks bar</dt><dd><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd></dd></div>
+<div><dt>This list</dt><dd><kbd>Ctrl</kbd>+<kbd>/</kbd></dd></div>
+</dl></div>
+</div>
+<p>On macOS the <kbd>Ctrl</kbd> key is <kbd>⌘</kbd>, but DASH is not released for macOS yet.</p>
+
+<h2 id="privacy-tools">Privacy tools</h2>
+<ul>
+  <li><b>Ads and trackers.</b> Requests to known ad and tracking hosts are blocked before they load, so pages are lighter and fewer scripts watch you. If a site breaks, turn blocking off for that one site.</li>
+  <li><b>HTTPS-only.</b> Plain http addresses are switched to https, and DASH warns you before opening a site that cannot be secured.</li>
+  <li><b>Private tabs.</b> A private tab keeps its cookies, storage and cache apart and wipes them when the last private tab closes. If you set up a VPN, private tabs can connect it first.</li>
+  <li><b>Global Privacy Control and Do Not Track.</b> Sent by default. You can turn it off in Settings. Websites decide whether to honour it.</li>
+  <li><b>Secure DNS, VPN or proxy.</b> Off until you set them up in Settings. They change who can see your traffic. They do not make you anonymous.</li>
+  <li><b>Passwords.</b> Saved passwords are encrypted with your operating system's secure storage.</li>
+</ul>
+
+<h2 id="lock">Locking DASH</h2>
+<p><b>App Lock</b> locks the whole browser with one password. Turn it on in <b>Settings, Security</b>, choose a password of 8 or more characters and an auto-lock time. DASH then locks when it starts, when you choose Lock DASH now (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>L</kbd>), and after the idle time you chose. While locked, pages are hidden, sound is muted and shortcuts are ignored. Five wrong tries in a row start a wait that doubles each time. <b>There is no back door:</b> if you forget the password, the only way in is <b>Erase and reset</b>, which permanently deletes history, bookmarks, saved passwords, cookies, cache, the downloads list and sessions. <b>Website Lock</b> is separate and protects single websites, each with its own password.</p>
+
+<h2 id="backup">Backups and moving your data</h2>
+<p>In Settings you can export a backup file and import it again, and import bookmarks and other data from another browser. Backups are files you choose where to save, and they are encrypted. Keep the password, because a backup cannot be opened without it. Your live data is in <code>%APPDATA%\DASH</code> on Windows.</p>
+
+<h2 id="android">On Android</h2>
+<ul>
+  <li><b>Keeps playing with the screen off.</b> A playing page keeps going when the screen is locked, with a media notification. Turn it off in Settings. It is off in Incognito. It is not tested on every phone, and sites such as YouTube may change how they detect hidden pages.</li>
+  <li><b>Tabs.</b> Swipe a tab card sideways to close it (with Undo). Swipe the address bar left or right to switch tabs.</li>
+</ul>
+
+<h2 id="fix">Fixing common problems</h2>
+<h3>Windows says it protected my PC</h3>
+<p>That is SmartScreen, shown because the build is not code-signed yet. Choose <b>More info</b>, then <b>Run anyway</b>, but only for a file you downloaded from the official releases page. You can compare its SHA-256 with the one on the Download page when GitHub provides it.</p>
+<h3>A website is broken</h3>
+<p>Turn off tracker blocking for that site, or open it in a private tab to rule out saved cookies. If that fixes it, a blocked request was needed by the page.</p>
+<h3>DASH starts slowly</h3>
+<p>Slow starts are usually caused by a VPN or an extension that takes time to load. Every start writes a line to <code>dash-startup.log</code> in DASH's data folder. Start DASH with the environment variable <code>DASH_TRACE_STARTUP=1</code> for a step-by-step trace, and attach the log when you <a href="https://github.com/{{site.repo}}/issues" rel="noopener">report it</a>.</p>
+<h3>I forgot my App Lock password</h3>
+<p>Use Erase and reset on the lock screen. It deletes your data in DASH, as described above. A backup you exported earlier can bring it back.</p>
+<h3>Uninstall</h3>
+<p>Remove DASH from Windows Settings, Apps. Your data folder is left in place so a reinstall finds it. Delete <code>%APPDATA%\DASH</code> if you want everything gone. On Android, uninstall the app like any other.</p>
+
+<h2 id="help">Still stuck?</h2>
+<p>Search the <a href="index.html#questions">questions</a>, or <a href="https://github.com/{{site.repo}}/issues" rel="noopener">open an issue</a>. Say which version you run and what you expected to happen. DASH is made by one person, so replies can take a few days.</p>
