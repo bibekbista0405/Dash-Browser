@@ -35,6 +35,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const lookup = (ctx, key) => {
   if (key === 'this') return ctx.this;
   if (key === '@index') return ctx['@index'];
+  if (key === '@index1') return ctx['@index'] + 1;
   if (key.startsWith('@root.')) return key.slice(6).split('.').reduce((o, k) => (o == null ? o : o[k]), ctx['@root']);
   const own = ctx.this !== null && typeof ctx.this === 'object' ? key.split('.').reduce((o, k) => (o == null ? o : o[k]), ctx.this) : undefined;
   return own !== undefined ? own : key.split('.').reduce((o, k) => (o == null ? o : o[k]), ctx['@root']);
@@ -86,14 +87,16 @@ data.platforms.windows.points = data.platforms.windows.points.map((s) => ({ s })
 data.platforms.android.points = data.platforms.android.points.map((s) => ({ s }));
 data.hero.lines = data.hero.lines.map((s) => ({ s }));
 data.ribbon = data.ribbon.map((s) => ({ s }));
-data.nav = data.nav.map((s) => ({ s, id: s.toLowerCase() }));
 data.features.items.forEach((f) => { f.chips = f.chips.map((s) => ({ s })); });
+data.home.manifestoWords = data.home.manifesto.split(/\s+/).map((s) => ({ s }));
+data.home.how.items.forEach((h, i) => { h.artHtml = ART[h.art] ?? ''; h.n = String(i + 1).padStart(2, '0'); });
+data.intro.letters = [...data.site.name].map((s) => ({ s }));
 data._logo = logo();
 data._logoLoop = logo('loop');
 data._logoBuild = logo('build');
 data._maskCss = maskCss;
 data._favicon = favicon;
-data._json = JSON.stringify({ repo: content.site.repo, thanks: content.thanks }).replace(/</g, '\\u003c');
+data._json = JSON.stringify({ repo: content.site.repo, thanks: content.thanks, rows: content.connections.rows, pages: Object.fromEntries(Object.entries(content.pages).map(([k, v]) => [k, v.kicker])), siteName: content.site.name }).replace(/</g, '\\u003c');
 
 const html = render(read('template/index.tpl.html'), { this: data, '@root': data });
 const out = path.join(here, 'dist');

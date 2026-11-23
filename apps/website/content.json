@@ -7,43 +7,182 @@
     "developer": "Bibek Bista",
     "license": "GPL-3.0"
   },
-  "nav": ["Connections", "Features", "Playground", "Download", "Questions"],
+  "nav": [
+    {
+      "label": "Connections",
+      "page": "connections"
+    },
+    {
+      "label": "Features",
+      "page": "features"
+    },
+    {
+      "label": "Playground",
+      "page": "playground"
+    },
+    {
+      "label": "Download",
+      "page": "get"
+    },
+    {
+      "label": "Questions",
+      "page": "questions"
+    }
+  ],
   "hero": {
-    "lines": ["Nothing", "follows", "you."],
+    "lines": [
+      "Nothing",
+      "follows",
+      "you."
+    ],
     "lede": "DASH is a fast, free browser for Windows and Android. It blocks ads and trackers, sends nothing about you to anyone, and keeps your data on your own device.",
     "note": "Free and open source. No account.",
     "windowsLabel": "Download for Windows",
     "androidLabel": "Download for Android"
   },
-  "ribbon": ["No telemetry", "No accounts", "Data stays on your device", "Open source", "Ads and trackers blocked", "HTTPS-only mode", "Encrypted backups", "Windows and Android"],
+  "ribbon": [
+    "No telemetry",
+    "No accounts",
+    "Data stays on your device",
+    "Open source",
+    "Ads and trackers blocked",
+    "HTTPS-only mode",
+    "Encrypted backups",
+    "Windows and Android"
+  ],
   "connections": {
     "title": "Every connection DASH makes, listed.",
     "intro": "Most browsers call home for analytics, sync and suggestions. DASH has none of that. Besides loading the pages you ask for, these are the only requests it can make, and each one is off by default or starts with something you do.",
     "note": "This list comes from the privacy statement in the source code. If the code ever disagrees with it, that is a bug you can report.",
     "rows": [
-      { "title": "Telemetry", "text": "Analytics, crash reports, usage statistics, advertising IDs.", "tag": "never", "never": true },
-      { "title": "Accounts and sync", "text": "There is nothing to sign in to. Your history and passwords never leave your device.", "tag": "never", "never": true },
-      { "title": "Update check", "text": "Only the address you enter yourself.", "tag": "if you turn it on", "never": false },
-      { "title": "Secure DNS", "text": "The DNS provider you pick (Cloudflare by default).", "tag": "if you turn it on", "never": false },
-      { "title": "VPN or proxy", "text": "The server you configure yourself.", "tag": "if you set it up", "never": false },
-      { "title": "Search suggestions", "text": "Your chosen search engine, with what you type, no cookies.", "tag": "while you type", "never": false },
-      { "title": "Translate page", "text": "translate.google.com sees the page address.", "tag": "when you press it", "never": false },
-      { "title": "AI helper", "text": "A model on your own computer (Ollama). Nothing goes to an online AI service.", "tag": "local only", "never": false }
+      {
+        "title": "Telemetry",
+        "text": "Analytics, crash reports, usage statistics, advertising IDs.",
+        "tag": "never",
+        "never": true
+      },
+      {
+        "title": "Accounts and sync",
+        "text": "There is nothing to sign in to. Your history and passwords never leave your device.",
+        "tag": "never",
+        "never": true
+      },
+      {
+        "title": "Update check",
+        "text": "Only the address you enter yourself.",
+        "tag": "if you turn it on",
+        "never": false
+      },
+      {
+        "title": "Secure DNS",
+        "text": "The DNS provider you pick (Cloudflare by default).",
+        "tag": "if you turn it on",
+        "never": false
+      },
+      {
+        "title": "VPN or proxy",
+        "text": "The server you configure yourself.",
+        "tag": "if you set it up",
+        "never": false
+      },
+      {
+        "title": "Search suggestions",
+        "text": "Your chosen search engine, with what you type, no cookies.",
+        "tag": "while you type",
+        "never": false
+      },
+      {
+        "title": "Translate page",
+        "text": "translate.google.com sees the page address.",
+        "tag": "when you press it",
+        "never": false
+      },
+      {
+        "title": "AI helper",
+        "text": "A model on your own computer (Ollama). Nothing goes to an online AI service.",
+        "tag": "local only",
+        "never": false
+      }
     ]
   },
   "features": {
     "title": "Built for the daily grind, not for data brokers.",
     "intro": "The basics you expect, plus the privacy tools other browsers hide in menus.",
     "items": [
-      { "art": "block", "title": "Ads and trackers, stopped first", "text": "Requests to known ad and tracking hosts are blocked before they load, so pages are faster and nothing watches you read. Turn blocking off for one site if it breaks.", "chips": [] },
-      { "art": "https", "title": "HTTPS-only mode", "text": "DASH upgrades plain http addresses to https and warns you before opening a site that cannot be secured. On Android, certificate errors cannot be clicked away.", "chips": ["HTTPS upgrade", "Global Privacy Control"] },
-      { "art": "private", "title": "Private tabs that clean up", "text": "Incognito uses a separate profile. When the last private tab closes, its cookies, storage and cache are wiped.", "chips": [] },
-      { "art": "vault", "title": "Passwords, encrypted", "text": "Saved logins are protected by your operating system's secure storage and can be locked behind your fingerprint or device PIN.", "chips": ["Biometric lock", "App lock"] },
-      { "art": "backup", "title": "Backups you control", "text": "Export everything to one file, encrypted with a passphrase you choose (scrypt and AES-256-GCM). Move it between Windows and Android.", "chips": ["scrypt", "AES-256-GCM"] },
-      { "art": "audio", "title": "Keeps playing with the screen off", "text": "On Android, video and music continue when you lock your phone or switch apps, with play and pause on the lock screen. You can turn it off in settings.", "chips": ["Android"] },
-      { "art": "desktop", "title": "On Windows, more control", "text": "Container tabs, split view, sleeping tabs, extensions from the Chrome Web Store, a proxy or VPN, web apps, a built-in password manager and an app lock.", "chips": ["Containers", "Split view", "Extensions", "VPN / proxy"] },
-      { "art": "mobile", "title": "On Android, built for one hand", "text": "Swipe the address bar to change tabs, swipe a tab card to close it (with Undo), scan QR codes, search by voice and open video in Picture-in-Picture.", "chips": ["QR scan", "Voice search", "Picture-in-Picture"] },
-      { "art": "reader", "title": "Reader and translate", "text": "Strip a page down to its text, or translate it when you ask.", "chips": [] }
+      {
+        "art": "block",
+        "title": "Ads and trackers, stopped first",
+        "text": "Requests to known ad and tracking hosts are blocked before they load, so pages are faster and nothing watches you read. Turn blocking off for one site if it breaks.",
+        "chips": []
+      },
+      {
+        "art": "https",
+        "title": "HTTPS-only mode",
+        "text": "DASH upgrades plain http addresses to https and warns you before opening a site that cannot be secured. On Android, certificate errors cannot be clicked away.",
+        "chips": [
+          "HTTPS upgrade",
+          "Global Privacy Control"
+        ]
+      },
+      {
+        "art": "private",
+        "title": "Private tabs that clean up",
+        "text": "Incognito uses a separate profile. When the last private tab closes, its cookies, storage and cache are wiped.",
+        "chips": []
+      },
+      {
+        "art": "vault",
+        "title": "Passwords, encrypted",
+        "text": "Saved logins are protected by your operating system's secure storage and can be locked behind your fingerprint or device PIN.",
+        "chips": [
+          "Biometric lock",
+          "App lock"
+        ]
+      },
+      {
+        "art": "backup",
+        "title": "Backups you control",
+        "text": "Export everything to one file, encrypted with a passphrase you choose (scrypt and AES-256-GCM). Move it between Windows and Android.",
+        "chips": [
+          "scrypt",
+          "AES-256-GCM"
+        ]
+      },
+      {
+        "art": "audio",
+        "title": "Keeps playing with the screen off",
+        "text": "On Android, video and music continue when you lock your phone or switch apps, with play and pause on the lock screen. You can turn it off in settings.",
+        "chips": [
+          "Android"
+        ]
+      },
+      {
+        "art": "desktop",
+        "title": "On Windows, more control",
+        "text": "Container tabs, split view, sleeping tabs, extensions from the Chrome Web Store, a proxy or VPN, web apps, a built-in password manager and an app lock.",
+        "chips": [
+          "Containers",
+          "Split view",
+          "Extensions",
+          "VPN / proxy"
+        ]
+      },
+      {
+        "art": "mobile",
+        "title": "On Android, built for one hand",
+        "text": "Swipe the address bar to change tabs, swipe a tab card to close it (with Undo), scan QR codes, search by voice and open video in Picture-in-Picture.",
+        "chips": [
+          "QR scan",
+          "Voice search",
+          "Picture-in-Picture"
+        ]
+      },
+      {
+        "art": "reader",
+        "title": "Reader and translate",
+        "text": "Strip a page down to its text, or translate it when you ask.",
+        "chips": []
+      }
     ]
   },
   "playground": {
@@ -54,32 +193,192 @@
   "platforms": {
     "title": "Two downloads. Same promise.",
     "intro": "Files come straight from the project's GitHub releases. There is no installer wrapper and no sign-up.",
-    "windows": { "title": "Windows", "points": ["Windows 10 or 11, 64-bit", "Installer, or a portable file that needs no install", "Builds are not code-signed yet, so Windows shows a warning the first time (see the steps below)"], "button": "Download installer (.exe)", "portable": "Prefer no install? Get the portable version" },
-    "android": { "title": "Android", "points": ["Android 11 or newer", "Installs from an .apk file, so you allow installs from your browser once", "Early release: tell us what breaks"], "button": "Download for Android (.apk)" },
+    "windows": {
+      "title": "Windows",
+      "points": [
+        "Windows 10 or 11, 64-bit",
+        "Installer, or a portable file that needs no install",
+        "Builds are not code-signed yet, so Windows shows a warning the first time (see the steps below)"
+      ],
+      "button": "Download installer (.exe)",
+      "portable": "Prefer no install? Get the portable version"
+    },
+    "android": {
+      "title": "Android",
+      "points": [
+        "Android 11 or newer",
+        "Installs from an .apk file, so you allow installs from your browser once",
+        "Early release: tell us what breaks"
+      ],
+      "button": "Download for Android (.apk)"
+    },
     "other": "iPhone, iPad and Mac are not supported yet. Linux has no build yet either."
   },
   "steps": {
-    "windows": { "title": "Installing on Windows", "items": ["Run the downloaded file.", "If Windows SmartScreen says it protected your PC, choose More info, then Run anyway. This appears because the build is not signed yet, not because anything was detected.", "Finish the installer, open DASH and pick your look and search engine."] },
-    "android": { "title": "Installing on Android", "items": ["Open the downloaded .apk from your notifications or Downloads.", "If asked, allow installs from this source, then go back and tap Install.", "Open DASH. You can turn the permission off again afterwards."] }
+    "windows": {
+      "title": "Installing on Windows",
+      "items": [
+        "Run the downloaded file.",
+        "If Windows SmartScreen says it protected your PC, choose More info, then Run anyway. This appears because the build is not signed yet, not because anything was detected.",
+        "Finish the installer, open DASH and pick your look and search engine."
+      ]
+    },
+    "android": {
+      "title": "Installing on Android",
+      "items": [
+        "Open the downloaded .apk from your notifications or Downloads.",
+        "If asked, allow installs from this source, then go back and tap Install.",
+        "Open DASH. You can turn the permission off again afterwards."
+      ]
+    }
   },
   "faq": {
     "title": "Questions people ask first",
     "items": [
-      { "q": "Does DASH collect anything about me?", "a": "No. There is no telemetry, no account and no advertising ID. History, bookmarks, notes and passwords stay in DASH's data folder on your device. The full list of connections is above." },
-      { "q": "Why does Windows warn me before running it?", "a": "The Windows build is not code-signed yet, and Windows warns about any unsigned program from a small publisher. You can read the source on GitHub before running it." },
-      { "q": "Is it really free?", "a": "Yes. DASH is open source under the GPL-3.0 license, made by Bibek Bista, an independent developer in Nepal. There are no paid tiers and no ads." },
-      { "q": "Can I sync between my laptop and phone?", "a": "There is no sync service, because that would mean your data sits on someone's server. Instead, export an encrypted backup on one device and restore it on the other." },
-      { "q": "Which engine does it use?", "a": "Windows runs on Chromium through Electron. Android uses the system WebView. Websites that work in Chrome work in DASH." },
-      { "q": "I found a bug. Where do I report it?", "a": "Open an issue on GitHub. Security problems go through the process described in the repository's SECURITY.md." }
+      {
+        "q": "Does DASH collect anything about me?",
+        "a": "No. There is no telemetry, no account and no advertising ID. History, bookmarks, notes and passwords stay in DASH's data folder on your device. The full list of connections is above."
+      },
+      {
+        "q": "Why does Windows warn me before running it?",
+        "a": "The Windows build is not code-signed yet, and Windows warns about any unsigned program from a small publisher. You can read the source on GitHub before running it."
+      },
+      {
+        "q": "Is it really free?",
+        "a": "Yes. DASH is open source under the GPL-3.0 license, made by Bibek Bista, an independent developer in Nepal. There are no paid tiers and no ads."
+      },
+      {
+        "q": "Can I sync between my laptop and phone?",
+        "a": "There is no sync service, because that would mean your data sits on someone's server. Instead, export an encrypted backup on one device and restore it on the other."
+      },
+      {
+        "q": "Which engine does it use?",
+        "a": "Windows runs on Chromium through Electron. Android uses the system WebView. Websites that work in Chrome work in DASH."
+      },
+      {
+        "q": "I found a bug. Where do I report it?",
+        "a": "Open an issue on GitHub. Security problems go through the process described in the repository's SECURITY.md."
+      }
     ]
   },
-  "cta": { "title": "Take your browsing back.", "text": "Free. Open source. Yours." },
-  "footer": { "text": "A privacy-first browser by Bibek Bista. Open source under GPL-3.0." },
+  "cta": {
+    "title": "Take your browsing back.",
+    "text": "Free. Open source. Yours."
+  },
+  "footer": {
+    "text": "A privacy-first browser by Bibek Bista. Open source under GPL-3.0."
+  },
   "thanks": {
     "title": "Thank you for choosing DASH.",
     "directLead": "Your download is starting. Check your downloads folder in a moment.",
     "pageLead": "The releases page is open in a new tab. Pick the file for your device there.",
-    "windows": [ { "t": "Run the file", "d": "If Windows SmartScreen appears, choose More info, then Run anyway. It shows up because the build is not signed yet." }, { "t": "Pick your look", "d": "DASH opens with a short setup for theme and search engine." } ],
-    "android": [ { "t": "Open the .apk", "d": "Allow installs from your browser if Android asks, then tap Install." }, { "t": "Allow notifications", "d": "DASH asks once, so music can keep playing with the screen off." } ]
+    "windows": [
+      {
+        "t": "Run the file",
+        "d": "If Windows SmartScreen appears, choose More info, then Run anyway. It shows up because the build is not signed yet."
+      },
+      {
+        "t": "Pick your look",
+        "d": "DASH opens with a short setup for theme and search engine."
+      }
+    ],
+    "android": [
+      {
+        "t": "Open the .apk",
+        "d": "Allow installs from your browser if Android asks, then tap Install."
+      },
+      {
+        "t": "Allow notifications",
+        "d": "DASH asks once, so music can keep playing with the screen off."
+      }
+    ]
+  },
+  "intro": {
+    "tagline": "Nothing follows you."
+  },
+  "home": {
+    "manifesto": "Most browsers are paid for by watching you. DASH is free and open source, made by one developer, so nothing in it depends on watching you. It blocks the trackers, keeps everything on your device, and lists every connection it can make.",
+    "how": {
+      "title": "What happens when you open a page.",
+      "items": [
+        {
+          "art": "block",
+          "title": "Trackers are stopped at the door",
+          "text": "Requests to known ad and tracking hosts are blocked before they load, so the page is faster and nothing watches you read."
+        },
+        {
+          "art": "https",
+          "title": "The connection is upgraded",
+          "text": "Plain http addresses are switched to https, and DASH warns you before opening a site that cannot be secured."
+        },
+        {
+          "art": "private",
+          "title": "Private tabs leave nothing behind",
+          "text": "Incognito uses a separate profile. Close the last private tab and its cookies, storage and cache are wiped."
+        },
+        {
+          "art": "backup",
+          "title": "What you keep, you lock",
+          "text": "Your data stays on your device. Back it up to one file, encrypted with a passphrase only you know."
+        }
+      ]
+    },
+    "explore": {
+      "title": "Go deeper.",
+      "tiles": [
+        {
+          "page": "connections",
+          "title": "Connections",
+          "text": "Every request DASH can make, and when."
+        },
+        {
+          "page": "features",
+          "title": "Features",
+          "text": "Blocking, private tabs, backups and more."
+        },
+        {
+          "page": "playground",
+          "title": "Playground",
+          "text": "Dash through a crowd of trackers."
+        },
+        {
+          "page": "get",
+          "title": "Download",
+          "text": "Windows and Android, straight from GitHub."
+        },
+        {
+          "page": "questions",
+          "title": "Questions",
+          "text": "Safety, the Windows warning, syncing."
+        }
+      ]
+    }
+  },
+  "pages": {
+    "connections": {
+      "kicker": "Connections",
+      "title": "Every connection, listed.",
+      "sub": "Click a node to see what happens when you switch that feature on. Two of them can never happen."
+    },
+    "features": {
+      "kicker": "Features",
+      "title": "Built for the daily grind.",
+      "sub": "The basics you expect, plus the privacy tools other browsers hide in menus."
+    },
+    "playground": {
+      "kicker": "Playground",
+      "title": "Try to follow me.",
+      "sub": "Move to browse. Click, tap or press Space to dash."
+    },
+    "get": {
+      "kicker": "Download",
+      "title": "Two downloads. Same promise.",
+      "sub": "Files come straight from the project's GitHub releases. No installer wrapper, no sign-up."
+    },
+    "questions": {
+      "kicker": "Questions",
+      "title": "Ask away.",
+      "sub": "Search the answers people look for first."
+    }
   }
 }

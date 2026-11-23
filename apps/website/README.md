@@ -31,4 +31,5 @@ Settings > Pages > Source: **GitHub Actions**. Pushes to `main` that touch `apps
   If the API is unreachable they open the releases page.
 - The hero window and phone are illustrations, and the "trackers cut" game is a toy. Neither shows real data.
 - The site sets no cookies and has no analytics. Outside requests: Google Fonts and the GitHub API.
-- Motion respects "reduce motion". Scroll entrances use CSS scroll-driven animation where supported and are simply visible elsewhere.
+- The site is one file with six hash-routed pages (#home, #connections, #features, #playground, #get, #questions). Nav labels and targets live in `nav` in content.json; page headings in `pages`.
+- Motion respects "reduce motion": no intro, instant page swaps, no pinned scroll sections.

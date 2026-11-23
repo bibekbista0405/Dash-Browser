@@ -3,6 +3,15 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M86 - Website: multi-page, intro, scroll motion
+- Six dedicated pages (Home, Connections, Features, Playground, Download, Questions) with hash routes, so links and the back button work.
+- Page changes use a skewed streak-wipe transition with the page name; the same wipe closes the intro.
+- Warp-speed intro: a streak field accelerates, the real DASH logo parts fly in, a shockwave ring, then the wordmark and tagline. Skip button or Esc; shown once per session.
+- Nav is a pill that reshapes while you scroll: full width at the top, a glass capsule after scrolling, compact when scrolling down, wider when scrolling up, a single Download button at the page end. Scroll-progress ring around the logo, a stretchy sliding active indicator, magnetic links, and a full-screen menu on phones.
+- Home scroll effects: hero parallax, velocity-skewed marquee, word-by-word manifesto, pinned horizontal "what happens when you open a page" scroller, hover-fill tiles. Cursor ring on mouse devices.
+- Connections is an interactive node map. Features cards tilt and have a pointer spotlight. Playground is full screen with a best-single-dash score (the auto demo does not count). Download page shows the release version, size and the SHA-256 when GitHub provides one, plus tabbed install steps. Questions has live search.
+- Tested in headless Chromium only (desktop, 390 px phone, light, dark, reduced motion). Not tried on real phones or Safari.
+
 ## M85 - Website redesign
 - Uses the real DASH logo, split into pieces and animated (build-in intro, drifting streaks, loop).
 - New motion language: left-to-right entrances, headline wipes, a streak background, a ribbon, an illustrated DASH window and phone, and an animated panel per feature.
