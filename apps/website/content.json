@@ -395,6 +395,11 @@
       "kicker": "Docs",
       "title": "Learn DASH in ten minutes.",
       "sub": "Shortcuts, settings, privacy tools and fixes."
+    },
+    "developer": {
+      "kicker": "Developer",
+      "title": "The person behind DASH.",
+      "sub": "One developer, one browser."
     }
   },
   "peek": {
@@ -448,5 +453,67 @@
     "forks": "Forks",
     "downloads": "Downloads of all releases",
     "release": "Latest release"
+  },
+  "developer": {
+    "name": "Bibek Bista",
+    "role": "Solo developer",
+    "place": "Nepal",
+    "portfolio": "https://bibekbista.vercel.app",
+    "portfolioLabel": "bibekbista.vercel.app",
+    "github": "https://github.com/bibekbista0405",
+    "h1a": "One developer.",
+    "h1b": "One browser.",
+    "sub": "I'm Bibek. I design, write, test and ship DASH on my own, from Nepal. I keep it free and open source so nobody has to take my word for it.",
+    "stackTitle": "What DASH is made of",
+    "stackText": "Desktop is Electron with React and TypeScript. Android is Kotlin on the system WebView. This website is plain HTML, CSS and JavaScript built by a small script. Hover the orbit to hold it still.",
+    "rings": [
+      [
+        "TypeScript",
+        "React",
+        "Zustand"
+      ],
+      [
+        "Electron",
+        "Vite",
+        "SQLite"
+      ],
+      [
+        "Kotlin",
+        "WebView",
+        "GitHub Actions"
+      ]
+    ],
+    "timelineTitle": "From the workshop, newest first",
+    "principlesTitle": "Rules I build by",
+    "principles": [
+      {
+        "k": "01",
+        "t": "Nothing is faked",
+        "b": "Every feature is real. If something is limited or not tested yet, the release notes and this site say so."
+      },
+      {
+        "k": "02",
+        "t": "No telemetry",
+        "b": "DASH sends nothing about you to me or anyone else. I can't see who uses it or what they browse."
+      },
+      {
+        "k": "03",
+        "t": "Your data stays",
+        "b": "History, bookmarks and passwords live on your device. There is no account to sign in to."
+      },
+      {
+        "k": "04",
+        "t": "Open to inspect",
+        "b": "The source is public under GPL-3.0. Read it, build it, change it, tell me where I got it wrong."
+      }
+    ],
+    "ctaTitle": "Want to see what else I make?",
+    "ctaText": "My portfolio has my other work and a way to reach me. Found a bug or want a feature in DASH? Open an issue on GitHub, I read every one.",
+    "counts": [
+      "Milestones shipped",
+      "Lines of code",
+      "Source files",
+      "Platforms"
+    ]
   }
 }

@@ -3,6 +3,15 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M88 - Website: developer page, thank-you takeover, smoother scrolling
+
+- New **Developer** page (footer link, `#developer`): tilting holographic maker pass, counters computed from the repo at build time, orbiting tech stack, build timeline from this changelog, flip-card principles. Only facts from the repository are shown.
+- New full-screen **thank-you takeover** after a download: letter-by-letter title, progress rail, step cards, canvas dash burst, pointer tilt, Esc/backdrop/focus trap.
+- Download buttons redesigned (sheen, arrow, busy state).
+- Scrolling: eased wheel scrolling on desktop with a single frame loop; geometry re-measured on layout change so sections no longer stall.
+- Intro: light beam and rays burst added; `beam` keyframe name clash fixed.
+- Tested in headless Chromium only (desktop and 390px). Not tested on real touch devices or other browsers.
+
 ## M87 - Website: smoother motion, docs and legal pages, Vercel
 - Smoother scrolling: one animation loop with cached positions and eased values, so parallax, the manifesto, the pinned scroller and the ribbon glide instead of jumping. Frame pacing in headless Chromium held at 60 fps during a scripted scroll.
 - Nav rewritten to be cheap to draw: no backdrop blur, transform-based states, no layout reads while scrolling.
@@ -12,6 +21,7 @@ All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.c
 - Real pages: Privacy policy, Terms of use, Security, Documentation (install, shortcuts, privacy tools, App Lock, backups, fixes), Licenses and Changelog (both generated from the repository files), and a 404. They share the streak-wipe transition with the main site.
 - Vercel-ready: `vercel.json` (build, output folder, security headers, clean URLs), `package.json`, `public/` for static files, sitemap and canonical links from `SITE_URL` or Vercel's production URL, deploy steps in `apps/website/README.md`.
 - Fixed: the smoothed scroll value shared a name with the cursor element and broke the parallax.
+- The built site now lives in `apps/website/public/` (index.html and every page, committed), so Vercel can host the folder as it is with no build step. Static source files moved to `apps/website/static/`.
 - Not tested: real phones, Safari, a live Vercel deploy. The privacy policy and terms were written by the developer without a lawyer.
 
 ## M86 - Website: multi-page, intro, scroll motion

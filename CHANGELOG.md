@@ -3,6 +3,15 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M88 - Website: developer page, thank-you takeover, smoother scrolling
+
+- New **Developer** page (footer link, `#developer`): tilting holographic maker pass, counters computed from the repo at build time, orbiting tech stack, build timeline from this changelog, flip-card principles. Only facts from the repository are shown.
+- New full-screen **thank-you takeover** after a download: letter-by-letter title, progress rail, step cards, canvas dash burst, pointer tilt, Esc/backdrop/focus trap.
+- Download buttons redesigned (sheen, arrow, busy state).
+- Scrolling: eased wheel scrolling on desktop with a single frame loop; geometry re-measured on layout change so sections no longer stall.
+- Intro: light beam and rays burst added; `beam` keyframe name clash fixed.
+- Tested in headless Chromium only (desktop and 390px). Not tested on real touch devices or other browsers.
+
 ## M87 - Website: smoother motion, docs and legal pages, Vercel
 - Smoother scrolling: one animation loop with cached positions and eased values, so parallax, the manifesto, the pinned scroller and the ribbon glide instead of jumping. Frame pacing in headless Chromium held at 60 fps during a scripted scroll.
 - Nav rewritten to be cheap to draw: no backdrop blur, transform-based states, no layout reads while scrolling.

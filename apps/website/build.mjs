@@ -93,13 +93,32 @@ data.home.how.items.forEach((h, i) => { h.artHtml = ART[h.art] ?? ''; h.n = Stri
 data.intro.letters = [...data.site.name].map((s) => ({ s }));
 data.nav = data.nav.map((n) => ({ ...n, url: n.href ? n.href : '#' + n.page, hard: n.href ? '1' : '', docUrl: n.href ? n.href : 'index.html#' + n.page }));
 data.hero.trust = (data.hero.trust || []).map((s) => ({ s }));
+// real numbers about the code base, counted at build time (so nothing on the Developer page is invented)
+function repoStats() {
+  const root = path.join(here, '..', '..'), snap = path.join(here, 'snapshot', 'stats.json');
+  const dirs = [['apps/desktop/src', ['.ts', '.tsx', '.css']], ['apps/android/app/src', ['.kt', '.xml']], ['packages', ['.ts', '.tsx']], ['apps/website', ['.html', '.mjs', '.json']]];
+  if (!fs.existsSync(path.join(root, 'apps/desktop'))) { try { return JSON.parse(fs.readFileSync(snap, 'utf8')); } catch { return null; } }
+  let lines = 0, files = 0;
+  const skip = new Set(['node_modules', 'dist', 'dist-electron', 'release', 'public', 'snapshot', '.git', 'build', 'out']);
+  const walk = (dir, exts) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { if (skip.has(e.name)) continue; const f = path.join(dir, e.name); if (e.isDirectory()) walk(f, exts); else if (exts.includes(path.extname(e.name)) && !/package-lock|logo-parts|content\.json/.test(e.name)) { const t = fs.readFileSync(f, 'utf8'); lines += t.split('\n').length; files++; } } };
+  for (const [d, x] of dirs) { const full = path.join(root, d); if (fs.existsSync(full)) walk(full, x); }
+  const log = (fs.existsSync(path.join(root, 'CHANGELOG.md')) ? fs.readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8') : '');
+  const heads = [...log.matchAll(/^## (M\d+) - (.+)$/gm)];
+  const out = { lines, files, milestones: heads.length, timeline: heads.slice(0, 7).map((m) => ({ n: m[1], t: m[2] })) };
+  fs.mkdirSync(path.dirname(snap), { recursive: true }); fs.writeFileSync(snap, JSON.stringify(out));
+  return out;
+}
+const rs = repoStats();
+data.dev = rs ? { lines: rs.lines, files: rs.files, milestones: rs.milestones, timeline: rs.timeline } : { lines: 0, files: 0, milestones: 0, timeline: [] };
+data.developer.rings = data.developer.rings.map((r) => ({ items: r.map((s) => ({ s })) }));
+data.developer.counts = data.developer.counts.map((s) => ({ s }));
 data.updated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 data._logo = logo();
 data._logoLoop = logo('loop');
 data._logoBuild = logo('build');
 data._maskCss = maskCss;
 data._favicon = favicon;
-data._json = JSON.stringify({ repo: content.site.repo, thanks: content.thanks, rows: content.connections.rows, pages: Object.fromEntries(Object.entries(content.pages).map(([k, v]) => [k, v.kicker])), siteName: content.site.name }).replace(/</g, '\\u003c');
+data._json = JSON.stringify({ repo: content.site.repo, thanks: content.thanks, rows: content.connections.rows, pages: Object.fromEntries(Object.entries(content.pages).map(([k, v]) => [k, v.kicker])), siteName: content.site.name, dev: { lines: rs ? rs.lines : 0, files: rs ? rs.files : 0, milestones: rs ? rs.milestones : 0 } }).replace(/</g, '\\u003c');
 
 const html = render(read('template/index.tpl.html'), { this: data, '@root': data });
 const out = path.join(here, 'public');
