@@ -1,0 +1,40 @@
+<p class="lead">DASH is built by one person, so good bug reports, testing and pull requests make a real difference.</p>
+<p class="meta">Updated {{updated}}.</p>
+
+<h2 id="report">Report a problem</h2>
+<p>Open an <a href="https://github.com/{{site.repo}}/issues" rel="noopener">issue on GitHub</a> and say which version you use, whether it is Windows or Android, what you did and what happened. A screenshot helps. For a security problem, do not open a public issue: read the <a href="security.html">security page</a>.</p>
+
+<h2 id="rules">Ground rules</h2>
+<ul>
+  <li>No telemetry or tracking, ever, and no new network connection unless the user starts it. If a feature needs one, it must be written down in the privacy documentation in the same change.</li>
+  <li>Real features only: no placeholder screens or invented data. If something is limited, the app and the docs say so.</li>
+  <li>Secure Electron defaults: context isolation on, no Node in renderers, every IPC channel validated.</li>
+  <li>Your contribution is licensed under GPL-3.0-only.</li>
+</ul>
+
+<h2 id="setup">Run it yourself</h2>
+<pre><code>npm install
+npm run dev          # development
+npm run typecheck
+npm run lint
+npm run build</code></pre>
+<p>The desktop app is in <code>apps/desktop</code>, shared logic in <code>packages/browser-core</code>, the Android app in <code>apps/android</code> and this website in <code>apps/website</code>. The full guide is <a href="https://github.com/{{site.repo}}/blob/main/CONTRIBUTING.md" rel="noopener">CONTRIBUTING.md</a>.</p>
+
+<h2 id="pr">Pull requests</h2>
+<ol>
+  <li>Keep a pull request focused and describe how you tested it.</li>
+  <li>Typecheck, lint and build must pass.</li>
+  <li>Add a line to the changelog.</li>
+</ol>
+
+<h2 id="roadmap">What might come next</h2>
+<p>These are ideas, not promises or dates. DASH is a one-person project and priorities change.</p>
+<ul>
+  <li>Tab groups.</li>
+  <li>Web push notifications.</li>
+  <li>Installable web apps.</li>
+  <li>A better layout on tablets.</li>
+  <li>More languages, with native speakers reviewing every translation.</li>
+  <li>A code-signed Windows installer.</li>
+</ul>
+<p>Want something else? <a href="https://github.com/{{site.repo}}/issues" rel="noopener">Tell me in an issue</a>.</p>

@@ -1,0 +1,26 @@
+<p class="lead">A checksum proves the file you downloaded is the same file published on GitHub, byte for byte. It takes about a minute.</p>
+<p class="meta">Updated {{updated}}.</p>
+
+<h2 id="why">Why bother</h2>
+<p>The Windows installer is not code-signed yet, so Windows SmartScreen shows a warning the first time. Checking the SHA-256 checksum is how you confirm the file was not damaged or swapped on the way to you. It does not replace trust in the project: it only shows that your copy matches the one on the official GitHub release.</p>
+
+<h2 id="find">Find the official checksum</h2>
+<p>Open the <a href="https://github.com/{{site.repo}}/releases/latest" rel="noopener">latest release on GitHub</a>. Each file listed under Assets shows a SHA-256 value. The download page on this site shows the same value when it can read it from GitHub. If the two ever differ, do not install and <a href="https://github.com/{{site.repo}}/issues" rel="noopener">tell me</a>.</p>
+
+<h2 id="windows">On Windows</h2>
+<p>Open PowerShell in the folder with the file and run the command below. Replace the file name with the one you downloaded.</p>
+<pre><code>Get-FileHash .\DASH-Setup.exe -Algorithm SHA256</code></pre>
+<p>Compare the <b>Hash</b> value with the one on GitHub. Letter case does not matter. Every character must match.</p>
+
+<h2 id="android">On Android, Linux or macOS</h2>
+<pre><code>sha256sum DASH.apk</code></pre>
+<p>On macOS use <code>shasum -a 256 DASH.apk</code>. On Android you can run the same command in a terminal app such as Termux.</p>
+
+<h2 id="source">Build it yourself</h2>
+<p>DASH is open source under GPL-3.0. If you would rather not trust a prebuilt file at all, you can read the code and build it from the <a href="https://github.com/{{site.repo}}" rel="noopener">repository</a>. The build steps are in its README.</p>
+
+<h2 id="limits">What a checksum cannot tell you</h2>
+<ul>
+  <li>It cannot prove the code is safe, only that your file is the published one. The code is public so anyone can review it.</li>
+  <li>A checksum copied from a page that an attacker controls proves nothing, so always take it from the GitHub release page of this repository.</li>
+</ul>

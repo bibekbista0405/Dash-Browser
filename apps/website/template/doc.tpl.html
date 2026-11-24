@@ -9,10 +9,15 @@
 <meta name="theme-color" content="#0b0d10">
 <link rel="icon" type="image/png" href="data:image/png;base64,{{{_favicon}}}">
 {{#if doc.canonical}}<link rel="canonical" href="{{doc.canonical}}">{{/if}}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="preload" href="fonts/bricolage-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/hanken.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+@font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 500; font-display: swap; src: url(fonts/bricolage-500.woff2) format("woff2"); }
+@font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 700; font-display: swap; src: url(fonts/bricolage-700.woff2) format("woff2"); }
+@font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 800; font-display: swap; src: url(fonts/bricolage-800.woff2) format("woff2"); }
+@font-face { font-family: "Hanken Grotesk"; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/hanken.woff2) format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url(fonts/jetbrains.woff2) format("woff2"); }
+
 :root { --bg: #f1f4fa; --bg-2: #e6ebf5; --ink: #0c1120; --ink-2: #4a5470; --line: #cfd7e8; --accent: #2f45f0; --accent-ink: #fff; --surface: #fff; --shadow: 0 24px 60px rgba(20, 30, 70, 0.14);
   --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif; --body: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, Consolas, monospace; --ease: cubic-bezier(0.2, 0.8, 0.2, 1); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0b0d10; --bg-2: #11151b; --ink: #eef1f7; --ink-2: #99a3b9; --line: #222a36; --accent: #7d94ff; --accent-ink: #0b0d10; --surface: #12161c; --shadow: 0 24px 60px rgba(0, 0, 0, 0.5); color-scheme: dark; } }
@@ -56,6 +61,8 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 .tx .bars { position: absolute; inset: 0 -8% 0 -8%; display: flex; transform: skewX(-9deg); } .tx .bars i { flex: 1; background: var(--accent); margin-right: -1px; transform-origin: right; } .tx .bars i:nth-child(even) { background: var(--ink); }
 @media (max-width: 900px) { .shell { grid-template-columns: minmax(0, 1fr); } .toc { position: static; display: flex; flex-wrap: wrap; gap: 6px; } .toc b { width: 100%; } .toc a { border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; } .top nav a:not(.get):not([data-keep]) { display: none; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
+pre { margin: 14px 0; padding: 14px 18px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); overflow-x: auto; font: 500 0.88rem/1.5 var(--mono); }
+code { font-family: var(--mono); font-size: 0.9em; }
 </style>
 </head>
 <body>
@@ -78,7 +85,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 </div>
 <footer class="foot">
   <span>© 2026 {{site.developer}}. {{site.name}} is open source under GPL-3.0.</span>
-  <a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="security.html">Security</a><a href="licenses.html">Licenses</a><a href="changelog.html">Changelog</a><a href="https://github.com/{{site.repo}}" rel="noopener">GitHub</a>
+  <a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="security.html">Security</a><a href="licenses.html">Licenses</a><a href="changelog.html">Changelog</a><a href="verify.html">Verify</a><a href="compare.html">Compare</a><a href="contribute.html">Contribute</a><a href="press.html">Press</a><a href="index.html#developer">Developer</a><a href="https://github.com/{{site.repo}}" rel="noopener">GitHub</a>
 </footer>
 <script>
 (function () {

@@ -3,6 +3,23 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M92 - Website step 2: honest comparison, contribute and press pages, OS note
+
+- New pages: "DASH compared honestly" (where DASH fits, where other browsers are ahead, what to check in any browser), "Contribute and roadmap" (real commands from CONTRIBUTING.md, ideas not promises) and "Press kit" (facts, logo, colours). Linked from the footer.
+- Page transitions are about 25 percent faster.
+- Visitors on Mac, iPad, iPhone, Linux or ChromeOS now see a short note that DASH is not available for their device yet.
+- Not done: real app screenshots (need images from the developer) and translations (need a native speaker to review).
+- Tested in headless Chromium only.
+
+## M91 - Website step 1: self-hosted fonts, social image, verify guide, motion controls
+
+- Fonts are now served from the site itself (Bricolage Grotesque, Hanken Grotesk, JetBrains Mono, all SIL OFL, licence in `fonts/OFL.txt`). The site no longer contacts Google Fonts.
+- Outlined headings fixed so inner overlap lines no longer show.
+- Social preview image (`og.png`, 1200x630) and large-card Open Graph and Twitter tags. The image link becomes absolute when `SITE_URL` is set at build time.
+- New page: Verify your download (SHA-256 steps for Windows, Android, Linux and macOS), linked from the footer.
+- Intro now plays once per browser, not once per session. Footer has "Replay intro", "Smooth scrolling" and "Calm mode" switches, remembered on the device.
+- Tested in headless Chromium only.
+
 ## M90 - Website: intro sound, minimal thank-you, footer cleanup
 
 - Intro: removed the centre beam, rays and shake. Added a soft glow and a second shockwave ring.

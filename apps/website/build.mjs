@@ -120,6 +120,8 @@ data._maskCss = maskCss;
 data._favicon = favicon;
 data._json = JSON.stringify({ repo: content.site.repo, thanks: content.thanks, rows: content.connections.rows, pages: Object.fromEntries(Object.entries(content.pages).map(([k, v]) => [k, v.kicker])), siteName: content.site.name, dev: { lines: rs ? rs.lines : 0, files: rs ? rs.files : 0, milestones: rs ? rs.milestones : 0 } }).replace(/</g, '\\u003c');
 
+const siteUrl = (process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : content.site.url || '')).replace(/\/$/, '');
+data.ogImage = siteUrl ? siteUrl + '/og.png' : 'og.png';
 const html = render(read('template/index.tpl.html'), { this: data, '@root': data });
 const out = path.join(here, 'public');
 fs.mkdirSync(out, { recursive: true });
@@ -130,7 +132,6 @@ fs.copyFileSync(path.join(here, 'template/admin.html'), path.join(out, 'admin.ht
 // ---- real pages: privacy, terms, security, docs, licenses, changelog, 404 ----
 const esc2 = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const inline = (t) => esc2(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" rel="noopener">$1</a>');
-const siteUrl = (process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : content.site.url || '')).replace(/\/$/, '');
 // the repository's own files are the source of truth; keep a snapshot so the site still builds if only this folder is checked out
 fs.mkdirSync(path.join(here, 'snapshot'), { recursive: true });
 const repoFile = (name) => {
@@ -170,6 +171,10 @@ const pages = [
   { file: 'privacy', title: 'Privacy policy', kicker: 'Legal', desc: 'What DASH and this website do with your data: nothing is sent to the developer, no accounts, no telemetry, and every connection is listed.' },
   { file: 'terms', title: 'Terms of use', kicker: 'Legal', desc: 'The short terms for using DASH and this website. GPL-3.0 licence, no warranty, plain words.' },
   { file: 'security', title: 'Security', kicker: 'Security', desc: 'How to report a vulnerability in DASH privately, what is in scope, and how to check what you download.' },
+  { file: 'compare', title: 'DASH compared honestly', kicker: 'About', desc: 'Where DASH is a good fit, where other browsers are ahead today, and what to check in any browser you use.' },
+  { file: 'contribute', title: 'Contribute and roadmap', kicker: 'Project', desc: 'Report problems, run DASH from source, send a pull request, and see what might come next.' },
+  { file: 'press', title: 'Press kit', kicker: 'Project', desc: 'Facts, a short description, logo and colours for anyone writing about DASH.' },
+  { file: 'verify', title: 'Verify your download', kicker: 'Security', desc: 'How to check the SHA-256 checksum of the DASH installer or APK against the official GitHub release.' },
   { file: 'docs', title: 'Documentation', kicker: 'Docs', desc: 'Install DASH, keyboard shortcuts, privacy tools, App Lock, backups and fixes for common problems.' },
   { file: 'licenses', title: 'Licenses', kicker: 'Legal', desc: 'The GPL-3.0 licence of DASH and the licences of the software it builds on.', gen: licensesBody },
   { file: 'changelog', title: 'Changelog', kicker: 'Releases', desc: 'Every change made to DASH, newest first.', gen: () => `<p class="lead">What changed in each milestone, newest first. The same list is in the repository.</p>${changelogHtml(repoFile('CHANGELOG.md'))}` },
@@ -190,7 +195,7 @@ const nf = render(docTpl, { this: { ...data, nav: data.nav.map((n) => ({ ...n })
 fs.writeFileSync(path.join(out, '404.html'), nf);
 // static files (robots, manifest, icons...) copied as they are
 const pub = path.join(here, 'static');
-if (fs.existsSync(pub)) for (const f of fs.readdirSync(pub)) fs.copyFileSync(path.join(pub, f), path.join(out, f));
+if (fs.existsSync(pub)) fs.cpSync(pub, out, { recursive: true });
 if (siteUrl) {
   const routes = ['', ...pages.map((p) => p.file)];
   fs.writeFileSync(path.join(out, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${routes.map((r) => `  <url><loc>${siteUrl}/${r}</loc></url>`).join('\n')}\n</urlset>\n`);
