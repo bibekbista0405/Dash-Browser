@@ -3,6 +3,15 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M93 - Website: real screenshots and screen recordings
+
+- The hero now shows a real screenshot of DASH on Windows instead of the illustration. The invented tracker chips and the phone mock-up are gone.
+- New "See DASH in action" section: four screen recordings (privacy controls, Website Lock, private tab, first-run setup at 3x speed) with a tab player, plus a swipeable strip of the five first-run screens.
+- Recordings were cropped to remove the Windows taskbar, muted and compressed (about 3 MB in total). The segments with browsing history and third-party sites were left out. Playback pauses when off screen and does not autoplay in Calm mode or with reduced motion.
+- Press kit links the screenshots.
+- No Android screenshots or recordings yet; the page says so.
+- Tested in headless Chromium only.
+
 ## M92 - Website step 2: honest comparison, contribute and press pages, OS note
 
 - New pages: "DASH compared honestly" (where DASH fits, where other browsers are ahead, what to check in any browser), "Contribute and roadmap" (real commands from CONTRIBUTING.md, ideas not promises) and "Press kit" (facts, logo, colours). Linked from the footer.

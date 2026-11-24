@@ -514,5 +514,72 @@
       "Source files",
       "Platforms"
     ]
+  },
+  "demo": {
+    "title": "See DASH in action",
+    "intro": "Screen recordings of DASH on Windows, cropped and compressed. Nothing here is a mock-up.",
+    "note": "Recorded on Windows. There are no Android recordings yet.",
+    "tabs": [
+      {
+        "id": "privacy",
+        "t": "Privacy controls",
+        "d": "Ad and tracker blocking, tracking protection and the Privacy Report, all in Settings.",
+        "video": "media/privacy.mp4",
+        "poster": "media/privacy.jpg",
+        "alt": "DASH Settings showing ad and tracker blocking, tracking protection toggles and the Privacy Report"
+      },
+      {
+        "id": "lock",
+        "t": "Website Lock",
+        "d": "Give chosen sites their own password. Set up a recovery key first.",
+        "video": "media/lock.mp4",
+        "poster": "media/lock.jpg",
+        "alt": "DASH Website Lock page"
+      },
+      {
+        "id": "private",
+        "t": "Private tab",
+        "d": "A private tab says plainly what is kept and what is not hidden.",
+        "video": "media/private.mp4",
+        "poster": "media/private.jpg",
+        "alt": "DASH private tab and main menu"
+      },
+      {
+        "id": "setup",
+        "t": "First-run setup",
+        "d": "Theme, search engine and privacy choices in about a minute. Shown at 3x speed.",
+        "video": "media/setup.mp4",
+        "poster": "media/setup.jpg",
+        "alt": "DASH first-run setup, shown at triple speed"
+      }
+    ],
+    "shotsTitle": "First-run setup, step by step",
+    "shots": [
+      {
+        "img": "media/shot-welcome.webp",
+        "t": "Welcome",
+        "alt": "DASH welcome screen"
+      },
+      {
+        "img": "media/shot-look.webp",
+        "t": "Pick a look",
+        "alt": "Choose dark, light or system theme"
+      },
+      {
+        "img": "media/shot-search.webp",
+        "t": "Choose a search engine",
+        "alt": "Choose DuckDuckGo, Google, Bing or Brave Search"
+      },
+      {
+        "img": "media/shot-privacy.webp",
+        "t": "Privacy, your way",
+        "alt": "Switches for blocking ads, trackers and HTTPS-only mode"
+      },
+      {
+        "img": "media/shot-done.webp",
+        "t": "All set",
+        "alt": "Setup finished screen"
+      }
+    ]
   }
 }

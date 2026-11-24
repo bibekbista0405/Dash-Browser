@@ -804,6 +804,34 @@ footer.ft { padding: 0 0 calc(28px + env(safe-area-inset-bottom, 0px)); position
 .vel span { color: var(--bg-2); -webkit-text-stroke: 3px var(--ink-2); paint-order: stroke fill; }
 .vel span:nth-child(3n) { color: var(--ink); -webkit-text-stroke: 0; }
 .os-note { margin: 16px 0 0; padding: 10px 14px; max-width: 34rem; border-left: 3px solid var(--tracker); background: var(--bg-2); border-radius: 0 12px 12px 0; font-size: 0.88rem; color: var(--ink-2); }
+
+/* ---------- real screenshots and recordings ---------- */
+.win.shot { background: #0b0d10; border-color: color-mix(in srgb, var(--ink) 14%, transparent); line-height: 0; }
+.win.shot img { display: block; width: 100%; height: auto; }
+.visual .win.shot { width: 100%; max-width: 660px; margin-left: auto; }
+@media (max-width: 900px) { .visual .win.shot { width: 100%; } }
+.demo-grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: clamp(20px, 3.5vw, 48px); margin-top: 36px; align-items: start; }
+.demo-tabs { display: grid; gap: 10px; }
+.dt { position: relative; overflow: hidden; text-align: left; appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 20px; padding: 16px 18px 18px; cursor: pointer; font: inherit; transition: border-color 0.3s, transform 0.4s var(--ease), box-shadow 0.3s; }
+.dt b { display: block; font: 700 1.02rem var(--display); letter-spacing: -0.02em; }
+.dt span { display: block; margin-top: 4px; font-size: 0.86rem; line-height: 1.45; color: var(--ink-2); max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.5s var(--ease), opacity 0.4s; }
+.dt[aria-selected="true"] { border-color: var(--accent); box-shadow: 0 14px 40px color-mix(in srgb, var(--accent) 18%, transparent); transform: translateX(6px); }
+.dt[aria-selected="true"] span { max-height: 6em; opacity: 1; }
+.dt:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+.dt-p { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); opacity: 0; }
+.dt[aria-selected="true"] .dt-p { opacity: 1; }
+.demo-frame { position: relative; border-radius: 18px; overflow: hidden; background: #0b0d10; border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); box-shadow: var(--shadow); aspect-ratio: 1440 / 778; }
+.demo-frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.35s; }
+.demo-frame video.swap { opacity: 0; }
+.demo-play { position: absolute; inset: 0; margin: auto; width: 76px; height: 76px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; cursor: pointer; box-shadow: 0 14px 40px color-mix(in srgb, var(--accent) 45%, transparent); transition: transform 0.3s var(--ease); }
+.demo-play:hover { transform: scale(1.08); } .demo-play[hidden] { display: none; }
+.demo-note { margin: 12px 0 0; font-size: 0.84rem; color: var(--ink-2); }
+.shots-h { margin: clamp(40px, 6vw, 72px) 0 18px; font-size: clamp(1.3rem, 2.4vw, 1.7rem); }
+.shots { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 2px 18px; margin-inline: -2px; scrollbar-width: thin; }
+.shots figure { flex: 0 0 min(560px, 82%); margin: 0; scroll-snap-align: start; }
+.shots img { width: 100%; height: auto; display: block; border-radius: 16px; border: 1px solid var(--line); box-shadow: var(--shadow); background: #0b0d10; }
+.shots figcaption { margin-top: 10px; font-size: 0.9rem; color: var(--ink-2); }
+@media (max-width: 860px) { .demo-grid { grid-template-columns: minmax(0, 1fr); } .demo-tabs { grid-auto-flow: column; grid-auto-columns: minmax(200px, 62%); overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; } .dt { scroll-snap-align: start; } .dt[aria-selected="true"] { transform: none; } .dt span { max-height: none; opacity: 1; } }
 </style>
 </head>
 <body>
@@ -877,22 +905,9 @@ footer.ft { padding: 0 0 calc(28px + env(safe-area-inset-bottom, 0px)); position
         <p class="hero-note">Free and open source. No account. <span id="verNote"></span></p>
         <p class="os-note" id="osNote" hidden></p>
       </div>
-      <div class="visual" id="visual" aria-hidden="true">
-        <div class="win" id="win">
-          <div class="win-top"><span class="win-tab"><span class="lg " aria-hidden="true"><i class="body"></i><i class="bar1"></i><i class="bar2"></i><i class="dot0"></i><i class="dot1"></i><i class="dot2"></i></span> Morning news</span><span class="win-tab dim">New Tab</span></div>
-          <div class="win-addr"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span class="url">https://news-site.example/today</span><span class="shield"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg><b></b> blocked</span></div>
-          <div class="win-body">
-            <div class="sk h"></div><div class="sk img"></div><div class="sk s"></div><div class="sk m"></div><div class="sk s"></div>
-            <span class="fly" style="--y:18px;--d:0s">ads.network.example</span>
-            <span class="fly" style="--y:96px;--d:1.4s">track.metrics.example</span>
-            <span class="fly" style="--y:170px;--d:2.8s">pixel.adtech.example</span>
-          </div>
-        </div>
-        <div class="phone">
-          <div class="time">9:41<small>screen off</small></div>
-          <div class="np"><div class="r"><span class="lg " aria-hidden="true"><i class="body"></i><i class="bar1"></i><i class="bar2"></i><i class="dot0"></i><i class="dot1"></i><i class="dot2"></i></span><div><b>Now playing</b><span>in DASH</span></div></div><div class="prog"><i></i></div></div>
-        </div>
-        <span class="vis-cap">Illustration</span>
+      <div class="visual" id="visual">
+        <figure class="win shot" id="win"><img src="media/shot-newtab-hero.webp" width="1500" height="704" alt="The DASH new tab page in dark mode, with a search box and a count of blocked ad and tracker requests" fetchpriority="high"></figure>
+        <span class="vis-cap">A real screenshot of DASH on Windows.</span>
       </div>
 
     </div>
@@ -919,6 +934,26 @@ footer.ft { padding: 0 0 calc(28px + env(safe-area-inset-bottom, 0px)); position
       <dl class="peek-grid" id="peekGrid"></dl>
       <div class="peek-bar" aria-hidden="true"><i></i></div>
       <p class="peek-foot split-in">DASH stops known tracker hosts from loading at all, so those scripts never get to ask. It also sends the Global Privacy Control signal by default. No browser can promise you anonymity, and DASH does not.</p>
+    </div>
+  </section>
+
+  <section class="demo" id="demo">
+    <div class="wrap">
+      <h2 class="split-in">See DASH in action</h2>
+      <p class="muted lede2 split-in">Screen recordings of DASH on Windows, cropped and compressed. Nothing here is a mock-up.</p>
+      <div class="demo-grid">
+        <div class="demo-tabs" role="tablist" aria-label="DASH screen recordings">
+          <button class="dt" type="button" role="tab" aria-selected="false" data-i="0"><i class="dt-p"></i><b>Privacy controls</b><span>Ad and tracker blocking, tracking protection and the Privacy Report, all in Settings.</span></button><button class="dt" type="button" role="tab" aria-selected="false" data-i="1"><i class="dt-p"></i><b>Website Lock</b><span>Give chosen sites their own password. Set up a recovery key first.</span></button><button class="dt" type="button" role="tab" aria-selected="false" data-i="2"><i class="dt-p"></i><b>Private tab</b><span>A private tab says plainly what is kept and what is not hidden.</span></button><button class="dt" type="button" role="tab" aria-selected="false" data-i="3"><i class="dt-p"></i><b>First-run setup</b><span>Theme, search engine and privacy choices in about a minute. Shown at 3x speed.</span></button>
+        </div>
+        <div class="demo-stage">
+          <div class="demo-frame"><video id="demoV" muted playsinline loop preload="none" poster="media/privacy.jpg" aria-label="DASH Settings showing ad and tracker blocking, tracking protection toggles and the Privacy Report"></video><button class="demo-play" id="demoPlay" type="button" aria-label="Play recording" hidden><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button></div>
+          <p class="demo-note">Recorded on Windows. There are no Android recordings yet.</p>
+        </div>
+      </div>
+      <h3 class="shots-h">First-run setup, step by step</h3>
+      <div class="shots" id="shots">
+        <figure><img src="media/shot-welcome.webp" width="1400" height="747" loading="lazy" decoding="async" alt="DASH welcome screen"><figcaption>Welcome</figcaption></figure><figure><img src="media/shot-look.webp" width="1400" height="747" loading="lazy" decoding="async" alt="Choose dark, light or system theme"><figcaption>Pick a look</figcaption></figure><figure><img src="media/shot-search.webp" width="1400" height="747" loading="lazy" decoding="async" alt="Choose DuckDuckGo, Google, Bing or Brave Search"><figcaption>Choose a search engine</figcaption></figure><figure><img src="media/shot-privacy.webp" width="1400" height="747" loading="lazy" decoding="async" alt="Switches for blocking ads, trackers and HTTPS-only mode"><figcaption>Privacy, your way</figcaption></figure><figure><img src="media/shot-done.webp" width="1400" height="747" loading="lazy" decoding="async" alt="Setup finished screen"><figcaption>All set</figcaption></figure>
+      </div>
     </div>
   </section>
 
@@ -1075,7 +1110,7 @@ footer.ft { padding: 0 0 calc(28px + env(safe-area-inset-bottom, 0px)); position
       </div>
       <div class="pass-wrap">
         <div class="pass" id="pass" aria-label="Developer card">
-          <div class="pass-top"><span>MAKER PASS</span><span class="lg " aria-hidden="true"><i class="body"></i><i class="bar1"></i><i class="bar2"></i><i class="dot0"></i><i class="dot1"></i><i class="dot2"></i></span><span>NO. <b id="passNo">20</b></span></div>
+          <div class="pass-top"><span>MAKER PASS</span><span class="lg " aria-hidden="true"><i class="body"></i><i class="bar1"></i><i class="bar2"></i><i class="dot0"></i><i class="dot1"></i><i class="dot2"></i></span><span>NO. <b id="passNo">21</b></span></div>
           <div class="pass-photo"><b>BB</b><i></i><span>Nepal / GPL-3.0</span></div>
           <div class="pass-name">Bibek Bista</div>
           <div class="pass-role">Solo developer</div>
@@ -1085,8 +1120,8 @@ footer.ft { padding: 0 0 calc(28px + env(safe-area-inset-bottom, 0px)); position
     </div>
 
     <div class="dev-count" id="devCount">
-      <div class="dc rv"><b data-to="20">0</b><span>Milestones shipped</span></div>
-      <div class="dc rv"><b data-to="30776">0</b><span>Lines of code</span></div>
+      <div class="dc rv"><b data-to="21">0</b><span>Milestones shipped</span></div>
+      <div class="dc rv"><b data-to="30832">0</b><span>Lines of code</span></div>
       <div class="dc rv"><b data-to="241">0</b><span>Source files</span></div>
       <div class="dc rv"><b data-to="3">0</b><span>Platforms</span></div>
     </div>
@@ -1110,7 +1145,7 @@ footer.ft { padding: 0 0 calc(28px + env(safe-area-inset-bottom, 0px)); position
     <div class="wrap">
       <h2 class="split-in">From the workshop, newest first</h2>
       <ol class="tl" id="tl" style="padding-left:38px;margin-bottom:0">
-        <li class="rv"><small>M92</small><h3>Website step 2: honest comparison, contribute and press pages, OS note</h3></li><li class="rv"><small>M91</small><h3>Website step 1: self-hosted fonts, social image, verify guide, motion controls</h3></li><li class="rv"><small>M90</small><h3>Website: intro sound, minimal thank-you, footer cleanup</h3></li><li class="rv"><small>M89</small><h3>Website: intro fix, calmer hero, new footer, smoother nav</h3></li><li class="rv"><small>M88</small><h3>Website: developer page, thank-you takeover, smoother scrolling</h3></li><li class="rv"><small>M87</small><h3>Website: smoother motion, docs and legal pages, Vercel</h3></li><li class="rv"><small>M86</small><h3>Website: multi-page, intro, scroll motion</h3></li>
+        <li class="rv"><small>M93</small><h3>Website: real screenshots and screen recordings</h3></li><li class="rv"><small>M92</small><h3>Website step 2: honest comparison, contribute and press pages, OS note</h3></li><li class="rv"><small>M91</small><h3>Website step 1: self-hosted fonts, social image, verify guide, motion controls</h3></li><li class="rv"><small>M90</small><h3>Website: intro sound, minimal thank-you, footer cleanup</h3></li><li class="rv"><small>M89</small><h3>Website: intro fix, calmer hero, new footer, smoother nav</h3></li><li class="rv"><small>M88</small><h3>Website: developer page, thank-you takeover, smoother scrolling</h3></li><li class="rv"><small>M87</small><h3>Website: smoother motion, docs and legal pages, Vercel</h3></li>
       </ol>
     </div>
   </section>
@@ -1197,7 +1232,7 @@ footer.ft { padding: 0 0 calc(28px + env(safe-area-inset-bottom, 0px)); position
   </div>
 </div>
 
-<script type="application/json" id="cfg">{"repo":"bibekbista0405/Dash-Browser","thanks":{"title":"Thank you.","directLead":"Your download is starting. Check your downloads folder in a moment.","pageLead":"The releases page is open in a new tab. Pick the file for your device there.","windows":[{"t":"Run the file","d":"If Windows SmartScreen appears, choose More info, then Run anyway. It shows up because the build is not signed yet."},{"t":"Pick your look","d":"DASH opens with a short setup for theme and search engine."}],"android":[{"t":"Open the .apk","d":"Allow installs from your browser if Android asks, then tap Install."},{"t":"Allow notifications","d":"DASH asks once, so music can keep playing with the screen off."}]},"rows":[{"title":"Telemetry","text":"Analytics, crash reports, usage statistics, advertising IDs.","tag":"never","never":true},{"title":"Accounts and sync","text":"There is nothing to sign in to. Your history and passwords never leave your device.","tag":"never","never":true},{"title":"Update check","text":"Only the address you enter yourself.","tag":"if you turn it on","never":false},{"title":"Secure DNS","text":"The DNS provider you pick (Cloudflare by default).","tag":"if you turn it on","never":false},{"title":"VPN or proxy","text":"The server you configure yourself.","tag":"if you set it up","never":false},{"title":"Search suggestions","text":"Your chosen search engine, with what you type, no cookies.","tag":"while you type","never":false},{"title":"Translate page","text":"translate.google.com sees the page address.","tag":"when you press it","never":false},{"title":"AI helper","text":"A model on your own computer (Ollama). Nothing goes to an online AI service.","tag":"local only","never":false}],"pages":{"connections":"Connections","features":"Features","playground":"Playground","get":"Download","questions":"Questions","docs":"Docs","developer":"Developer"},"siteName":"DASH","dev":{"lines":30776,"files":241,"milestones":20}}</script>
+<script type="application/json" id="cfg">{"repo":"bibekbista0405/Dash-Browser","thanks":{"title":"Thank you.","directLead":"Your download is starting. Check your downloads folder in a moment.","pageLead":"The releases page is open in a new tab. Pick the file for your device there.","windows":[{"t":"Run the file","d":"If Windows SmartScreen appears, choose More info, then Run anyway. It shows up because the build is not signed yet."},{"t":"Pick your look","d":"DASH opens with a short setup for theme and search engine."}],"android":[{"t":"Open the .apk","d":"Allow installs from your browser if Android asks, then tap Install."},{"t":"Allow notifications","d":"DASH asks once, so music can keep playing with the screen off."}]},"demo":{"title":"See DASH in action","intro":"Screen recordings of DASH on Windows, cropped and compressed. Nothing here is a mock-up.","note":"Recorded on Windows. There are no Android recordings yet.","tabs":[{"id":"privacy","t":"Privacy controls","d":"Ad and tracker blocking, tracking protection and the Privacy Report, all in Settings.","video":"media/privacy.mp4","poster":"media/privacy.jpg","alt":"DASH Settings showing ad and tracker blocking, tracking protection toggles and the Privacy Report"},{"id":"lock","t":"Website Lock","d":"Give chosen sites their own password. Set up a recovery key first.","video":"media/lock.mp4","poster":"media/lock.jpg","alt":"DASH Website Lock page"},{"id":"private","t":"Private tab","d":"A private tab says plainly what is kept and what is not hidden.","video":"media/private.mp4","poster":"media/private.jpg","alt":"DASH private tab and main menu"},{"id":"setup","t":"First-run setup","d":"Theme, search engine and privacy choices in about a minute. Shown at 3x speed.","video":"media/setup.mp4","poster":"media/setup.jpg","alt":"DASH first-run setup, shown at triple speed"}],"shotsTitle":"First-run setup, step by step","shots":[{"img":"media/shot-welcome.webp","t":"Welcome","alt":"DASH welcome screen"},{"img":"media/shot-look.webp","t":"Pick a look","alt":"Choose dark, light or system theme"},{"img":"media/shot-search.webp","t":"Choose a search engine","alt":"Choose DuckDuckGo, Google, Bing or Brave Search"},{"img":"media/shot-privacy.webp","t":"Privacy, your way","alt":"Switches for blocking ads, trackers and HTTPS-only mode"},{"img":"media/shot-done.webp","t":"All set","alt":"Setup finished screen"}]},"rows":[{"title":"Telemetry","text":"Analytics, crash reports, usage statistics, advertising IDs.","tag":"never","never":true},{"title":"Accounts and sync","text":"There is nothing to sign in to. Your history and passwords never leave your device.","tag":"never","never":true},{"title":"Update check","text":"Only the address you enter yourself.","tag":"if you turn it on","never":false},{"title":"Secure DNS","text":"The DNS provider you pick (Cloudflare by default).","tag":"if you turn it on","never":false},{"title":"VPN or proxy","text":"The server you configure yourself.","tag":"if you set it up","never":false},{"title":"Search suggestions","text":"Your chosen search engine, with what you type, no cookies.","tag":"while you type","never":false},{"title":"Translate page","text":"translate.google.com sees the page address.","tag":"when you press it","never":false},{"title":"AI helper","text":"A model on your own computer (Ollama). Nothing goes to an online AI service.","tag":"local only","never":false}],"pages":{"connections":"Connections","features":"Features","playground":"Playground","get":"Download","questions":"Questions","docs":"Docs","developer":"Developer"},"siteName":"DASH","dev":{"lines":30832,"files":241,"milestones":21}}</script>
 <script>
 (function () {
   var cfg = JSON.parse(document.getElementById('cfg').textContent), REPO = cfg.repo, root = document.documentElement;
@@ -1601,6 +1636,26 @@ footer.ft { padding: 0 0 calc(28px + env(safe-area-inset-bottom, 0px)); position
     SND.on = !SND.on; try { localStorage.setItem('dash-sound', SND.on ? '1' : '0'); } catch (x) {}
     if (SND.on) { var c = sctx(); if (c) c.resume().then(function () { sndUi(); sChime(); }, sndUi); } else { sndUi(); }
   });
+
+  /* ---------- demo player ---------- */
+  (function () {
+    var v = $('demoV'), play = $('demoPlay'), tabs = [].slice.call(document.querySelectorAll('.dt')), T = cfg.demo.tabs, cur2 = -1, seen = false, manual = reduce;
+    if (!v) return;
+    function pick(i, userClick) {
+      if (i === cur2) return; cur2 = i; tabs.forEach(function (t, k) { t.setAttribute('aria-selected', k === i ? 'true' : 'false'); t.querySelector('.dt-p').style.setProperty('--p', 0); });
+      var go = function () { v.src = T[i].video; v.poster = T[i].poster; v.setAttribute('aria-label', T[i].alt); v.classList.remove('swap'); v.load(); if (!manual || userClick) { var p = v.play(); if (p && p.catch) p.catch(function () { play.hidden = false; }); } else play.hidden = false; };
+      if (v.src) { v.classList.add('swap'); setTimeout(go, 250); } else go();
+    }
+    tabs.forEach(function (t, k) { t.addEventListener('click', function () { if (reduce) manual = true; pick(k, true); play.hidden = true; }); });
+    v.addEventListener('timeupdate', function () { if (cur2 >= 0 && v.duration) tabs[cur2].querySelector('.dt-p').style.setProperty('--p', (v.currentTime / v.duration).toFixed(3)); });
+    play.addEventListener('click', function () { v.play(); play.hidden = true; });
+    v.addEventListener('click', function () { if (v.paused) { v.play(); } else { v.pause(); play.hidden = false; } });
+    v.addEventListener('pause', function () { if (manual && !document.hidden && v.currentTime > 0 && !v.ended && !inView) play.hidden = true; });
+    var inView = false;
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (en) { inView = en[0].isIntersecting; if (inView) { if (!seen) { seen = true; pick(0); } else if (!manual && v.paused && !userPaused) v.play().catch(function () {}); } else if (!v.paused) v.pause(); }, { threshold: 0.35 }).observe(v); else pick(0);
+    var userPaused = false; v.addEventListener('click', function () { userPaused = v.paused; });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) v.pause(); });
+  })();
 
   $('skip').addEventListener('click', finishIntro);
   addEventListener('keydown', function (e) { if (e.key === 'Escape' && intro.classList.contains('on')) finishIntro(); });

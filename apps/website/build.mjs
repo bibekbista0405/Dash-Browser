@@ -118,7 +118,7 @@ data._logoLoop = logo('loop');
 data._logoBuild = logo('build');
 data._maskCss = maskCss;
 data._favicon = favicon;
-data._json = JSON.stringify({ repo: content.site.repo, thanks: content.thanks, rows: content.connections.rows, pages: Object.fromEntries(Object.entries(content.pages).map(([k, v]) => [k, v.kicker])), siteName: content.site.name, dev: { lines: rs ? rs.lines : 0, files: rs ? rs.files : 0, milestones: rs ? rs.milestones : 0 } }).replace(/</g, '\\u003c');
+data._json = JSON.stringify({ repo: content.site.repo, thanks: content.thanks, demo: content.demo, rows: content.connections.rows, pages: Object.fromEntries(Object.entries(content.pages).map(([k, v]) => [k, v.kicker])), siteName: content.site.name, dev: { lines: rs ? rs.lines : 0, files: rs ? rs.files : 0, milestones: rs ? rs.milestones : 0 } }).replace(/</g, '\\u003c');
 
 const siteUrl = (process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : content.site.url || '')).replace(/\/$/, '');
 data.ogImage = siteUrl ? siteUrl + '/og.png' : 'og.png';
