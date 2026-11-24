@@ -74,11 +74,27 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
   </nav>
 </div></header>
 <div class="shell">
-  <aside class="toc" aria-label="On this page"><b>On this page</b><a href="#r0">M88 - Website: developer page, thank-you takeover, smoother scrolling</a><a href="#r1">M87 - Website: smoother motion, docs and legal pages, Vercel</a><a href="#r2">M86 - Website: multi-page, intro, scroll motion</a><a href="#r3">M85 - Website redesign</a><a href="#r4">M84 - Website</a><a href="#r5">M83 - Desktop: one clean reveal on start</a><a href="#r6">M82 - Desktop: faster start, steadier first frame</a><a href="#r7">M81 - Android: clean intro, screen-off playback, swipe gestures</a><a href="#r8">M80 - Android: folders, voice and QR search, picture-in-picture, background audio, reading mode, translate, cookie popups</a><a href="#r9">M79 - Android: password manager</a><a href="#r10">M78 - Android: share into DASH, live downloads, print</a><a href="#r11">M77 - Offline handling, address bar and search, intro rebuild</a><a href="#r12">M76 - Android and desktop share one backup file</a><a href="#r13">M75 - Android: encrypted backup</a><a href="#r14">M74 - Android: recently closed, bookmark import/export, site settings</a><a href="#r15">M73 - Android: first-run intro, animations, light/dark fixes</a><a href="#r16">[Unreleased]</a><a href="#r17">M71</a><a href="#r18">M70</a><a href="#r19">M69</a><a href="#r20">M68</a><a href="#r21">M67</a><a href="#r22">M66</a><a href="#r23">M65</a><a href="#r24">[0.1.0] — unreleased pre-release</a><a href="#r25">M57</a><a href="#r26">M57.1</a><a href="#r27">M57.2</a><a href="#r28">M57.3</a><a href="#r29">M58</a><a href="#r30">M58.1</a></aside>
+  <aside class="toc" aria-label="On this page"><b>On this page</b><a href="#r0">M90 - Website: intro sound, minimal thank-you, footer cleanup</a><a href="#r1">M89 - Website: intro fix, calmer hero, new footer, smoother nav</a><a href="#r2">M88 - Website: developer page, thank-you takeover, smoother scrolling</a><a href="#r3">M87 - Website: smoother motion, docs and legal pages, Vercel</a><a href="#r4">M86 - Website: multi-page, intro, scroll motion</a><a href="#r5">M85 - Website redesign</a><a href="#r6">M84 - Website</a><a href="#r7">M83 - Desktop: one clean reveal on start</a><a href="#r8">M82 - Desktop: faster start, steadier first frame</a><a href="#r9">M81 - Android: clean intro, screen-off playback, swipe gestures</a><a href="#r10">M80 - Android: folders, voice and QR search, picture-in-picture, background audio, reading mode, translate, cookie popups</a><a href="#r11">M79 - Android: password manager</a><a href="#r12">M78 - Android: share into DASH, live downloads, print</a><a href="#r13">M77 - Offline handling, address bar and search, intro rebuild</a><a href="#r14">M76 - Android and desktop share one backup file</a><a href="#r15">M75 - Android: encrypted backup</a><a href="#r16">M74 - Android: recently closed, bookmark import/export, site settings</a><a href="#r17">M73 - Android: first-run intro, animations, light/dark fixes</a><a href="#r18">[Unreleased]</a><a href="#r19">M71</a><a href="#r20">M70</a><a href="#r21">M69</a><a href="#r22">M68</a><a href="#r23">M67</a><a href="#r24">M66</a><a href="#r25">M65</a><a href="#r26">[0.1.0] — unreleased pre-release</a><a href="#r27">M57</a><a href="#r28">M57.1</a><a href="#r29">M57.2</a><a href="#r30">M57.3</a><a href="#r31">M58</a><a href="#r32">M58.1</a></aside>
   <article>
     <div class="kick">Releases</div>
     <h1>Changelog</h1>
-    <p class="lead">What changed in each milestone, newest first. The same list is in the repository.</p><h2 id="r0">M88 - Website: developer page, thank-you takeover, smoother scrolling</h2>
+    <p class="lead">What changed in each milestone, newest first. The same list is in the repository.</p><h2 id="r0">M90 - Website: intro sound, minimal thank-you, footer cleanup</h2>
+<ul>
+<li>Intro: removed the centre beam, rays and shake. Added a soft glow and a second shockwave ring.</li>
+<li>Intro sound, synthesized with Web Audio (no audio files): rising whoosh, low hit when the logo lands, a note per letter, final chime. Sound button in the intro, choice remembered on this device. Browsers block audio until a click, tap or key press, so the button reads "Tap for sound" until then.</li>
+<li>Thank-you after download is now one small card: ring draws around the logo, title, two short steps, one button.</li>
+<li>Footer: removed the developer card. The Developer page link stays, and the portfolio link lives on the Developer page only.</li>
+<li>Tested in headless Chromium only. Audio output was not listened to.</li>
+</ul>
+<h2 id="r1">M89 - Website: intro fix, calmer hero, new footer, smoother nav</h2>
+<ul>
+<li>Intro: fixed the logo jumping off screen. Two <code>@keyframes shake</code> rules clashed and the later one shifted the whole intro by 50%; the intro ones are now <code>ishake</code> and <code>isplit</code>.</li>
+<li>Hero: two-line headline, streak field masked away from the text, dot grid behind the illustration, Windows and Android buttons side by side, shorter trust row.</li>
+<li>Footer: giant DASH wordmark that lights up under the pointer, running streaks, developer card with live Nepal time, link hover lines, back-to-top button. Removed the duplicate Developer link.</li>
+<li>Nav: drop-in entrance with staggered links, back-to-top button in the compact end state, magnetic Download button.</li>
+<li>Tested in headless Chromium only (1440px and 390px).</li>
+</ul>
+<h2 id="r2">M88 - Website: developer page, thank-you takeover, smoother scrolling</h2>
 <ul>
 <li>New <b>Developer</b> page (footer link, <code>#developer</code>): tilting holographic maker pass, counters computed from the repo at build time, orbiting tech stack, build timeline from this changelog, flip-card principles. Only facts from the repository are shown.</li>
 <li>New full-screen <b>thank-you takeover</b> after a download: letter-by-letter title, progress rail, step cards, canvas dash burst, pointer tilt, Esc/backdrop/focus trap.</li>
@@ -87,7 +103,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>Intro: light beam and rays burst added; <code>beam</code> keyframe name clash fixed.</li>
 <li>Tested in headless Chromium only (desktop and 390px). Not tested on real touch devices or other browsers.</li>
 </ul>
-<h2 id="r1">M87 - Website: smoother motion, docs and legal pages, Vercel</h2>
+<h2 id="r3">M87 - Website: smoother motion, docs and legal pages, Vercel</h2>
 <ul>
 <li>Smoother scrolling: one animation loop with cached positions and eased values, so parallax, the manifesto, the pinned scroller and the ribbon glide instead of jumping. Frame pacing in headless Chromium held at 60 fps during a scripted scroll.</li>
 <li>Nav rewritten to be cheap to draw: no backdrop blur, transform-based states, no layout reads while scrolling.</li>
@@ -100,7 +116,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>The built site now lives in <code>apps/website/public/</code> (index.html and every page, committed), so Vercel can host the folder as it is with no build step. Static source files moved to <code>apps/website/static/</code>.</li>
 <li>Not tested: real phones, Safari, a live Vercel deploy. The privacy policy and terms were written by the developer without a lawyer.</li>
 </ul>
-<h2 id="r2">M86 - Website: multi-page, intro, scroll motion</h2>
+<h2 id="r4">M86 - Website: multi-page, intro, scroll motion</h2>
 <ul>
 <li>Six dedicated pages (Home, Connections, Features, Playground, Download, Questions) with hash routes, so links and the back button work.</li>
 <li>Page changes use a skewed streak-wipe transition with the page name; the same wipe closes the intro.</li>
@@ -110,37 +126,37 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>Connections is an interactive node map. Features cards tilt and have a pointer spotlight. Playground is full screen with a best-single-dash score (the auto demo does not count). Download page shows the release version, size and the SHA-256 when GitHub provides one, plus tabbed install steps. Questions has live search.</li>
 <li>Tested in headless Chromium only (desktop, 390 px phone, light, dark, reduced motion). Not tried on real phones or Safari.</li>
 </ul>
-<h2 id="r3">M85 - Website redesign</h2>
+<h2 id="r5">M85 - Website redesign</h2>
 <ul>
 <li>Uses the real DASH logo, split into pieces and animated (build-in intro, drifting streaks, loop).</li>
 <li>New motion language: left-to-right entrances, headline wipes, a streak background, a ribbon, an illustrated DASH window and phone, and an animated panel per feature.</li>
 <li>Content now lives in <code>apps/website/content.json</code>; <code>build.mjs</code> builds a static site; <code>dist/admin.html</code> is a form editor for it; <code>.github/workflows/website.yml</code> publishes to GitHub Pages.</li>
 </ul>
-<h2 id="r4">M84 - Website</h2>
+<h2 id="r6">M84 - Website</h2>
 <ul>
 <li>New <code>apps/website</code>: single-file official site with an interactive hero, a connections ledger copied from PRIVACY.md, feature overview, Windows and Android download cards fed from the GitHub release API, install steps, FAQ and a thank-you message after download. Light and dark. See apps/website/README.md.</li>
 </ul>
-<h2 id="r5">M83 - Desktop: one clean reveal on start</h2>
+<h2 id="r7">M83 - Desktop: one clean reveal on start</h2>
 <ul>
 <li>The window is now shown once, when the toolbar and the first page have both painted (4 s cap if something is slow, such as a VPN still connecting). Before, it appeared in pieces: window frame, toolbar, an empty page area, then the page.</li>
 <li>It is maximised while fully transparent and then shown, so the resize/maximise jump is never visible (Windows and macOS honour window opacity).</li>
 <li>DASH_TRACE_STARTUP=1 now also logs every window and web contents created at start-up, to show if anything opens that should not.</li>
 </ul>
-<h2 id="r6">M82 - Desktop: faster start, steadier first frame</h2>
+<h2 id="r8">M82 - Desktop: faster start, steadier first frame</h2>
 <ul>
 <li>Start-up no longer waits for extensions and "connect VPN on startup". The window and toolbar open at once; the first tabs are created when both are ready (so nothing loads outside the tunnel or without its extensions). Before, both were awaited before any window existed.</li>
 <li>First frame: the window is placed on the work area before it is shown and marked maximised afterwards, instead of being maximised while hidden. On Windows, window-occlusion tracking is switched off, a known cause of black or stale frames on a newly shown window.</li>
 <li>Every start writes one line to dash-startup.log (appReady, gateOpen, chromeLoaded, windowShown, tabsCreated, in ms since the process began). Set DASH_TRACE_STARTUP=1 for a step-by-step trace.</li>
 <li>Portable build shows a splash while it unpacks (path fixed in M82.1: relative to the project folder) (the unpacking itself happens before any DASH code runs).</li>
 </ul>
-<h2 id="r7">M81 - Android: clean intro, screen-off playback, swipe gestures</h2>
+<h2 id="r9">M81 - Android: clean intro, screen-off playback, swipe gestures</h2>
 <ul>
 <li>Intro rebuilt as three quiet pages (welcome, theme and search engine, ready). No background effects. The back button steps back; choices are applied for real. Asks for the notification permission when it ends.</li>
 <li>Screen-off playback: with the screen locked or another app open, a playing page keeps going (YouTube, music, podcasts). DASH tells the page it is always visible, keeps the page's renderer at high priority, runs a foreground media service with a partial wake lock, and shows a media notification (lock screen too) with play/pause and stop. Off in Incognito; Settings &gt; Keep audio playing in the background turns it off. Not tested on a device; YouTube may change how it detects hidden pages.</li>
 <li>Tabs: swipe a tab card sideways to close it, with Undo (not for Incognito). Swipe the address bar left or right to switch tabs. Toolbar buttons shrink slightly when pressed and give a light haptic tick on tab actions.</li>
 <li>New permission: WAKE_LOCK.</li>
 </ul>
-<h2 id="r8">M80 - Android: folders, voice and QR search, picture-in-picture, background audio, reading mode, translate, cookie popups</h2>
+<h2 id="r10">M80 - Android: folders, voice and QR search, picture-in-picture, background audio, reading mode, translate, cookie popups</h2>
 <ul>
 <li>Bookmark folders: move a bookmark into a folder (long-press), create, rename, remove or delete folders, search across all folders. A folder exists while it holds bookmarks. Folders are kept in the HTML export/import and in the shared backup file.</li>
 <li>Address bar: microphone (voice search, done by the phone's own speech service) and QR scanner (offline, ZXing). A scanned web address opens; other text is shown first and only searched if you choose.</li>
@@ -153,7 +169,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>Not compiled or run on a device here. Tested in a simulated page: the reading-mode extractor and the cookie-banner hiding script. Everything that needs Android (PiP, audio service, scanner, speech, dialogs) is untested.</li>
 <li>Still not done: tab groups, web push notifications, installable web apps, tablet layout, translations of DASH itself.</li>
 </ul>
-<h2 id="r9">M79 - Android: password manager</h2>
+<h2 id="r11">M79 - Android: password manager</h2>
 <ul>
 <li>DASH offers to save a login after you sign in (not in Incognito, not for sites you chose "Never" for) and to update it when the password changed. A failed login is not offered: the page must move on or the password box must go away.</li>
 <li>Tap a login field on a site you have saved and a sheet offers your saved logins; tapping one fills the page. Only the exact site, only https, only the top frame.</li>
@@ -163,14 +179,14 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>Not compiled or run on a device here. The page script was tested in a simulated page (capture and fill); the save/fill sheets, the Keystore file and the prompts have not been run.</li>
 <li>Limits: needs a WebView recent enough for message listeners (most phones); logins inside iframes, and sites that build their own fields in unusual ways, may not be detected; fill is by tapping, not automatic.</li>
 </ul>
-<h2 id="r10">M78 - Android: share into DASH, live downloads, print</h2>
+<h2 id="r12">M78 - Android: share into DASH, live downloads, print</h2>
 <ul>
 <li>Share a link or text from any app to DASH (a shared "Title + link" opens the link, plain text becomes a search). "Search with DASH" appears when you select text in other apps. Opening the same intent again after a rotation or theme change no longer duplicates the tab.</li>
 <li>Downloads screen: live percentage and size while downloading, "waiting for Wi-Fi/connection" states, tap a failed download to retry, long-press a finished file to share it, cancel a running download, confirm before deleting a file from the phone.</li>
 <li>Menu &gt; Print / Save as PDF uses Android's print dialog (choose "Save as PDF" as the printer).</li>
 <li>Not compiled or run on a device here.</li>
 </ul>
-<h2 id="r11">M77 - Offline handling, address bar and search, intro rebuild</h2>
+<h2 id="r13">M77 - Offline handling, address bar and search, intro rebuild</h2>
 <ul>
 <li>Android: friendly "can't load" pages with the real reason (offline, site not found, timeout, connection refused, redirect loop, bad certificate) and Try again / Wi-Fi settings buttons. Failed tabs reload by themselves when the connection returns, an "You're offline" strip shows while offline, and pages you visited before open from the saved copy offline (never in Incognito).</li>
 <li>Android: a tab whose page process crashes or is reclaimed by Android is rebuilt and reloaded instead of closing the app. Cancelled loads (downloads, replaced navigations) no longer show an error page. Bad-certificate pages show a clear block page (no click-through).</li>
@@ -180,7 +196,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>Android intro rebuilt on a single column layout (brand, page, buttons) so nothing overlaps on small screens; pages scroll; buttons are inactive until the logo animation settles; tapping during it skips ahead.</li>
 <li>Not compiled or run on a device here. The desktop address bar was tested here with keyboard input; online suggestions and the auto-retry could not be tested because this machine has no internet.</li>
 </ul>
-<h2 id="r12">M76 - Android and desktop share one backup file</h2>
+<h2 id="r14">M76 - Android and desktop share one backup file</h2>
 <ul>
 <li>The Android backup now uses the desktop <code>.dashbackup</code> format (scrypt + AES-256-GCM). A file saved on the phone opens in desktop DASH (Settings &gt; Backup) and the other way round.</li>
 <li>Shared: search engine, theme, ad blocking, HTTPS-only, third-party cookies, privacy signal, per-site blocking exceptions, bookmarks, hidden home sites, camera/microphone/location site choices.</li>
@@ -188,47 +204,47 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>scrypt is implemented in Kotlin (Android has none built in) and was checked against Node's crypto.scryptSync in both directions. The Android app itself is still not compiled or run on a device here.</li>
 <li>Replaces the short-lived M75 <code>.dashbk</code> format.</li>
 </ul>
-<h2 id="r13">M75 - Android: encrypted backup</h2>
+<h2 id="r15">M75 - Android: encrypted backup</h2>
 <ul>
 <li>Settings &gt; Your data: save and restore one passphrase-protected backup file (bookmarks, history, settings, site permission choices). AES-256-GCM, key from PBKDF2-HMAC-SHA256 (210,000 rounds). No recovery if the passphrase is lost.</li>
 <li>Restore merges: new bookmarks and history are added, settings and site choices are replaced.</li>
 <li>The desktop app cannot open this file yet (format: "DASHBK1" + salt + iv + ciphertext, JSON inside).</li>
 <li>Not compiled or run on a device in this environment.</li>
 </ul>
-<h2 id="r14">M74 - Android: recently closed, bookmark import/export, site settings</h2>
+<h2 id="r16">M74 - Android: recently closed, bookmark import/export, site settings</h2>
 <ul>
 <li>Recently closed: closed normal tabs (never Incognito) are kept, listed in the menu and can be reopened.</li>
 <li>Bookmarks can be imported from and exported to the standard bookmarks HTML file (works with Chrome and Firefox exports).</li>
 <li>Real camera, microphone and location prompts for https sites; the answer is remembered per site (not in Incognito) and can be changed from the padlock sheet or Settings &gt; Site settings. Android's own permission is only asked after you allow the site.</li>
 <li>Not compiled or run on a device in this environment.</li>
 </ul>
-<h2 id="r15">M73 - Android: first-run intro, animations, light/dark fixes</h2>
+<h2 id="r17">M73 - Android: first-run intro, animations, light/dark fixes</h2>
 <ul>
 <li>New motion-graphics intro on first launch (logo reveal with speed streaks, glow and rings, animated wordmark, four short pages). The theme and search engine you pick there are really applied.</li>
 <li>Animations: tab crossfade, tab switcher scale and staggered cards, staggered list rows in History/Bookmarks/Downloads.</li>
 <li>Light/dark: Material 3 colour roles and dialog theme mapped to DASH colours, status/navigation bar icons follow the theme, private home page colours aligned with the toolbar.</li>
 <li>Note: the Android app has not been compiled or run on a device in this environment.</li>
 </ul>
-<h2 id="r16">[Unreleased]</h2>
+<h2 id="r18">[Unreleased]</h2>
 <ul>
 <li>Android: real DASH logo (launcher, home, lock screen); Chrome-style home page (logo, search box that opens the address bar, Incognito / Bookmarks / History chips, shortcuts with real site icons); stronger ad blocking (more hosts, URL patterns, ad-hiding script, YouTube ad skipping); link/image long-press menu; hardened Incognito; dark/light fixes (bar icons, theme colors, optional web dark mode).</li>
 </ul>
-<h2 id="r17">M71</h2>
+<h2 id="r19">M71</h2>
 <ul>
 <li>apps/android redesigned Chrome-style: address pill with suggestions, tab card grid with previews, private tabs, animated menu, site info sheet, history/bookmarks/downloads/settings pages, find in page, add to Home screen, pull to refresh, per-site blocking, text size.</li>
 </ul>
-<h2 id="r18">M70</h2>
+<h2 id="r20">M70</h2>
 <ul>
 <li>apps/android: first native Android app (Kotlin + WebView): tabs, private tabs, search/URL bar, home shortcuts, ad/tracker blocking, HTTPS upgrade, bookmarks, history, downloads, app lock. Not yet compiled by the author.</li>
 </ul>
-<h2 id="r19">M69</h2>
+<h2 id="r21">M69</h2>
 <ul>
 <li>Removed the blue focus outline/border on buttons and chosen options (keyboard focus now uses a soft tint).</li>
 <li>Welcome → home: content fades out, toolbar eases in (no pop). Intro has word-by-word title reveal, pulsing logo ring, drifting glow orbs and a shine on the main button.</li>
 <li>Google sign-in: DASH no longer injects fingerprint noise, GPC or DNT on Google/Microsoft/etc. sign-in sites, and fills in the Chrome-only <code>window.chrome</code> parts (best effort).</li>
 <li>Closing the last tab now closes the window (and DASH quits with its last window).</li>
 </ul>
-<h2 id="r20">M68</h2>
+<h2 id="r22">M68</h2>
 <ul>
 <li>Bigger tabs, toolbar buttons and address bar; taller, easier-to-hit menu rows.</li>
 <li>Smoother dropdown/menu animation (spring ease, items fade in one after another).</li>
@@ -236,19 +252,19 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>Changing the search engine now updates the home page search box straight away.</li>
 <li>Proxy errors: page now says whether DASH's VPN or your system proxy failed, with "Turn VPN off and retry" / "Connect directly and retry".</li>
 </ul>
-<h2 id="r21">M67</h2>
+<h2 id="r23">M67</h2>
 <ul>
 <li>Unlock transition: password field no longer clears mid-fade, lock screen just fades (no zoom/jump), page appears after the fade instead of popping over it.</li>
 <li>Google sign-in: pages on Google hosts now also see a Chrome-like <code>window.chrome</code> object (best effort, unverified on real accounts).</li>
 </ul>
-<h2 id="r22">M66</h2>
+<h2 id="r24">M66</h2>
 <ul>
 <li>Top bar restyled like Chrome: tab-search button at the far left, tabs merge into the toolbar, darker address pill.</li>
 <li>Chrome-style tab right-click menu (new tab to the right, split, group, move to window, reload, duplicate, pin, mute, close other/right).</li>
 <li>Home shortcuts now only show sites visited 5+ times; deleting one is permanent (no Restore) and no longer reloads the page.</li>
 <li>Google sign-in: browser brand list patched to look like Chrome (best effort, unverified on real accounts).</li>
 </ul>
-<h2 id="r23">M65</h2>
+<h2 id="r25">M65</h2>
 <ul>
 <li>Fixed: <code>npm run dist:win</code> failed with "warning 6001: Variable DeleteDataCheck not referenced" (NSIS warning treated as error). The uninstaller's variables are now declared only in the uninstaller build. Reproduced the exact error here with the old installer script and confirmed the new one builds the installer without warnings.</li>
 </ul>
@@ -304,43 +320,43 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 <li>"Rejected IPC call from an unrecognized window" errors on internal pages.</li>
 <li>Split view and its divider position are restored after a restart.</li>
 </ul>
-<h2 id="r24">[0.1.0] — unreleased pre-release</h2>
+<h2 id="r26">[0.1.0] — unreleased pre-release</h2>
 <p>First feature-complete desktop build: tabs, groups and pinning, container tabs, profiles, history, bookmarks,</p>
 <p>downloads, encrypted password manager, tracker/ad blocking, Secure DNS, VPN/proxy, Chrome Web Store extensions,</p>
 <p>page translate (via your chosen service), docked DevTools, page zoom, split view with draggable dividers, quick notes,</p>
 <p>offline saved pages, a local-only AI helper (Ollama), opt-in updates, encrypted file-based backup and sync,</p>
 <p>light/dark themes, and a first-run welcome. No telemetry.</p>
-<h2 id="r25">M57</h2>
+<h2 id="r27">M57</h2>
 <ul>
 <li>Website Lock (per-site passwords, recovery key, encrypted backup, browser-level enforcement, dashboard, lock screen).</li>
 <li>Private tab hardening (WebRTC, Referer, client hints, UA/Accept-Language, third-party cookies).</li>
 </ul>
-<h2 id="r26">M57.1</h2>
+<h2 id="r28">M57.1</h2>
 <ul>
 <li>Fix: <code>npm run dev</code> showed a blank window (ERR_SSL_PROTOCOL_ERROR). HTTPS-only mode wrongly upgraded the local dev server <code>http://localhost:5173</code> to https. Local addresses (localhost, 127.x, private ranges, *.local, single-label hosts) are no longer upgraded.</li>
 <li>Fix: the Website Lock toolbar button opened a broken address (<code>dash://websitelock</code>); it now opens <code>dash://website-lock</code>.</li>
 <li>Website Lock toolbar popup: shows the current site's status, lock now, lock all, protect/manage.</li>
 </ul>
-<h2 id="r27">M57.2</h2>
+<h2 id="r29">M57.2</h2>
 <ul>
 <li>Website Lock now follows the DASH theme (light, dark, high contrast and accent colour) instead of its own fixed purple style.</li>
 <li>The toolbar lock button has "Lock this website…": set a password right in the popup for the page you are on (recovery key setup is offered first if needed). No typing the address.</li>
 </ul>
-<h2 id="r28">M57.3</h2>
+<h2 id="r30">M57.3</h2>
 <ul>
 <li>Fix: on <code>dash://website-lock</code> the sidebar links (History, Downloads, Settings…) could not be clicked: Website Lock's background glow covered the sidebar. It no longer blocks clicks.</li>
 <li>Keyboard shortcuts now work like Chrome while a web page has focus: Ctrl+K / Ctrl+E / Alt+D / F6 (address bar), Ctrl+G / F3 (find next, Shift for previous), Ctrl+F re-focuses an open find bar, Ctrl+PageUp/PageDown (switch tab), Ctrl+Shift+W (close window), Ctrl+Shift+J (DevTools), Ctrl+Shift+Delete (clear browsing data in Settings), Alt+Home (home page), Ctrl+Shift+- zoom out.</li>
 <li>Split view redesigned: rounded panes with a gap and a frame (accent colour on the active pane), a tab chip with a close button under each pane, and a "Choose what to show on this side" picker in the new pane (open tabs, shortcuts, search).</li>
 <li>Fix: a tab closed from inside DASH could stay in the tab strip.</li>
 </ul>
-<h2 id="r29">M58</h2>
+<h2 id="r31">M58</h2>
 <ul>
 <li>App Lock: lock the whole browser with one password (Settings → Privacy &amp; Security, toolbar lock menu, Ctrl+Alt+L). Always starts locked, optional auto-lock after 1–60 minutes without computer use, wrong-password waits that survive restarts, "Erase and reset" if the password is forgotten. Design: <code>docs/APP_LOCK.md</code>. 7 new tests.</li>
 <li>Split view: the two tabs sit side by side in the tab strip as one joined pill, with a sound icon on tabs that are playing audio. The empty pane lists your open tabs (not shortcuts).</li>
 <li>Slimmer bookmarks bar (24 px) and a smaller empty-bar hint.</li>
 <li>Tells Chromium the GPU memory budget to reduce the "tile memory limits exceeded" warning.</li>
 </ul>
-<h2 id="r30">M58.1</h2>
+<h2 id="r32">M58.1</h2>
 <ul>
 <li>Start-up: the window stays hidden until DASH's first frame is painted (no more black/white flash).</li>
 <li>No focus ring or box after a mouse click anywhere (menus, side navigation, buttons); a soft ring appears only when using Tab/arrow keys.</li>

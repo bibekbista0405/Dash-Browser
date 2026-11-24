@@ -3,6 +3,22 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M90 - Website: intro sound, minimal thank-you, footer cleanup
+
+- Intro: removed the centre beam, rays and shake. Added a soft glow and a second shockwave ring.
+- Intro sound, synthesized with Web Audio (no audio files): rising whoosh, low hit when the logo lands, a note per letter, final chime. Sound button in the intro, choice remembered on this device. Browsers block audio until a click, tap or key press, so the button reads "Tap for sound" until then.
+- Thank-you after download is now one small card: ring draws around the logo, title, two short steps, one button.
+- Footer: removed the developer card. The Developer page link stays, and the portfolio link lives on the Developer page only.
+- Tested in headless Chromium only. Audio output was not listened to.
+
+## M89 - Website: intro fix, calmer hero, new footer, smoother nav
+
+- Intro: fixed the logo jumping off screen. Two `@keyframes shake` rules clashed and the later one shifted the whole intro by 50%; the intro ones are now `ishake` and `isplit`.
+- Hero: two-line headline, streak field masked away from the text, dot grid behind the illustration, Windows and Android buttons side by side, shorter trust row.
+- Footer: giant DASH wordmark that lights up under the pointer, running streaks, developer card with live Nepal time, link hover lines, back-to-top button. Removed the duplicate Developer link.
+- Nav: drop-in entrance with staggered links, back-to-top button in the compact end state, magnetic Download button.
+- Tested in headless Chromium only (1440px and 390px).
+
 ## M88 - Website: developer page, thank-you takeover, smoother scrolling
 
 - New **Developer** page (footer link, `#developer`): tilting holographic maker pass, counters computed from the repo at build time, orbiting tech stack, build timeline from this changelog, flip-card principles. Only facts from the repository are shown.

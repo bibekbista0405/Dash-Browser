@@ -36,8 +36,7 @@
   ],
   "hero": {
     "lines": [
-      "Nothing",
-      "follows",
+      "Nothing follows",
       "you."
     ],
     "lede": "DASH is a fast, free browser for Windows and Android. It blocks ads and trackers, sends nothing about you to anyone, and keeps your data on your own device.",
@@ -280,7 +279,7 @@
     "text": "A privacy-first browser by Bibek Bista, an independent developer in Nepal. Open source under GPL-3.0."
   },
   "thanks": {
-    "title": "Thank you for choosing DASH.",
+    "title": "Thank you.",
     "directLead": "Your download is starting. Check your downloads folder in a moment.",
     "pageLead": "The releases page is open in a new tab. Pick the file for your device there.",
     "windows": [
