@@ -3,6 +3,14 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M94 - Website: edited media, cinematic setup theatre, intro restored
+
+- Intro is back to playing once per browser session, as before (it had been changed to once per browser in M91). "Replay intro" in the footer still works.
+- All four recordings re-edited: framed in a rounded window with shadow on a dark backdrop with the logo's speed lines, fades in and out, taskbar cropped, still muted and compressed.
+- First-run setup is now a cinematic theatre: letterbox bars, large step numbers and captions taken from the real screens, auto-advancing progress bars, previous/next, pause, swipe and arrow keys, and a filmstrip to jump between steps.
+- New dashed divider with a running speed streak between sections, echoing the logo.
+- Tested in headless Chromium only.
+
 ## M93 - Website: real screenshots and screen recordings
 
 - The hero now shows a real screenshot of DASH on Windows instead of the illustration. The invented tracker chips and the phone mock-up are gone.

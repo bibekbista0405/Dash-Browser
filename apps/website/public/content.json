@@ -556,30 +556,36 @@
     "shotsTitle": "First-run setup, step by step",
     "shots": [
       {
-        "img": "media/shot-welcome.webp",
+        "img": "media/stage-welcome.webp",
         "t": "Welcome",
+        "d": "A fast browser that keeps what you do on your own device. No account, no tracking, no telemetry.",
         "alt": "DASH welcome screen"
       },
       {
-        "img": "media/shot-look.webp",
+        "img": "media/stage-look.webp",
         "t": "Pick a look",
+        "d": "Dark, light, or follow your device. Changes apply right away and you can switch any time in Settings.",
         "alt": "Choose dark, light or system theme"
       },
       {
-        "img": "media/shot-search.webp",
-        "t": "Choose a search engine",
+        "img": "media/stage-search.webp",
+        "t": "Choose your search engine",
+        "d": "DuckDuckGo, Google, Bing or Brave Search. It is used when you type a search in the address bar.",
         "alt": "Choose DuckDuckGo, Google, Bing or Brave Search"
       },
       {
-        "img": "media/shot-privacy.webp",
+        "img": "media/stage-privacy.webp",
         "t": "Privacy, your way",
+        "d": "Block ads, block trackers, or turn on HTTPS-only mode. These work on your device; DASH never sends your browsing anywhere.",
         "alt": "Switches for blocking ads, trackers and HTTPS-only mode"
       },
       {
-        "img": "media/shot-done.webp",
-        "t": "All set",
+        "img": "media/stage-done.webp",
+        "t": "You're all set",
+        "d": "Everything you chose can be changed in Settings. You can also bring your bookmarks in from a file.",
         "alt": "Setup finished screen"
       }
-    ]
+    ],
+    "shotsIntro": "Five short screens, about a minute. Press play, or pick a step."
   }
 }
