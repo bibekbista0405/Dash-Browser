@@ -11,7 +11,9 @@
 
 <link rel="preload" href="fonts/bricolage-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/hanken.woff2" as="font" type="font/woff2" crossorigin>
+<script>try{if(sessionStorage.getItem('dash-tx')==='1'&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('from-tx')}catch(e){}</script>
 <style>
+.from-tx .tx { display: block; } .from-tx .tx .bars i { transform: scaleX(1); }
 @font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 500; font-display: swap; src: url(fonts/bricolage-500.woff2) format("woff2"); }
 @font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 700; font-display: swap; src: url(fonts/bricolage-700.woff2) format("woff2"); }
 @font-face { font-family: "Bricolage Grotesque"; font-style: normal; font-weight: 800; font-display: swap; src: url(fonts/bricolage-800.woff2) format("woff2"); }
@@ -126,7 +128,7 @@ code { font-family: var(--mono); font-size: 0.9em; }
   addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(upd); } }, { passive: true }); upd();
   /* arrive with the same streak wipe the main site uses */
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, came = false; try { came = sessionStorage.getItem('dash-tx') === '1'; sessionStorage.removeItem('dash-tx'); } catch (e) {}
-  var tx = document.getElementById('tx'); if (came && !reduce && tx.animate) { tx.classList.add('on'); var bars = tx.querySelectorAll('.bars i'), last; bars.forEach(function (b, i) { last = b.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: 520, delay: 60 + i * 45, easing: 'cubic-bezier(.7,0,.2,1)', fill: 'forwards' }); }); last.onfinish = function () { tx.classList.remove('on'); }; }
+  var tx = document.getElementById('tx'); addEventListener('pageshow', function (e) { if (e.persisted) { tx.getAnimations({ subtree: true }).forEach(function (x) { x.cancel(); }); tx.classList.remove('on'); document.documentElement.classList.remove('from-tx'); } }); if (came && !reduce && tx.animate) { tx.classList.add('on'); var bars = tx.querySelectorAll('.bars i'), last; bars.forEach(function (b, i) { last = b.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: 380, delay: 70 + i * 28, easing: 'cubic-bezier(.7,0,.2,1)', fill: 'forwards' }); }); last.onfinish = function () { tx.classList.remove('on'); document.documentElement.classList.remove('from-tx'); }; } else { document.documentElement.classList.remove('from-tx'); }
   /* links to the main site get the wipe too */
   document.addEventListener('click', function (e) { var a = e.target.closest && e.target.closest('a[href]'); if (!a || reduce || e.metaKey || e.ctrlKey || e.shiftKey || e.button || a.target || !tx.animate) return; var u = a.getAttribute('href'); if (/^(https?:|mailto:|#)/.test(u)) return; e.preventDefault(); tx.classList.add('on'); var bars = tx.querySelectorAll('.bars i'), last; bars.forEach(function (b, i) { b.style.transformOrigin = 'left'; last = b.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 440, delay: i * 40, easing: 'cubic-bezier(.7,0,.2,1)', fill: 'forwards' }); }); last.onfinish = function () { try { sessionStorage.setItem('dash-tx', '1'); } catch (x) {} location.href = u; }; });
 })();

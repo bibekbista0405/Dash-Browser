@@ -3,6 +3,14 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M95 - Calmer intro, setup theatre nav, smoother transitions, new hero deck
+
+- Removed the sound button and the footer "Smooth scrolling / Calm mode / Replay intro" controls. Animations and the intro are now on by default (intro plays once per browser session; the OS "reduce motion" setting is still respected). Intro sound plays only if the browser allows audio without a click.
+- First-run setup section: the nav bar slides away while the section is on screen and returns when you move the pointer to the top edge or scroll out.
+- Page transitions: pages now fade and lift out and in around the wipe, with a safety timeout so a transition can never get stuck. Fixed bars staying on screen after Back (bfcache), a content flash when arriving from doc pages, reveal animations finishing underneath the wipe, and a leftover arrival class after Back.
+- Hero: replaced the single skewed screenshot with a three-screen deck (New tab, Settings, First-run setup) from real DASH recordings. It cycles on its own, pauses on hover, reacts to the pointer, and can be switched with the tabs.
+- Tested in headless Chromium only (desktop and 390px width). Not tested on real phones or Safari.
+
 ## M94 - Website: edited media, cinematic setup theatre, intro restored
 
 - Intro is back to playing once per browser session, as before (it had been changed to once per browser in M91). "Replay intro" in the footer still works.
