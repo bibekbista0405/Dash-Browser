@@ -3,6 +3,15 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M96 - Smoother hero and intro
+
+- Intro: shock rings are drawn on the warp canvas instead of two huge animated page layers, the canvas runs at 1x, and the sound starts after the first frame. Frame times in a headless test went from spikes up to 50 ms to a steady 16.7 ms.
+- Hero: the streak canvas now caches its colours (no style reads per frame), clears only the areas it drew, runs at a lower density, and waits until the intro has finished.
+- Hero deck: parallax moves three GPU layers from one animation frame instead of changing CSS variables on every pointer event; dimming uses an overlay instead of animating a filter; the moving glint inside rounded corners is removed.
+- Cursor ring: no more blend mode or layout-based movement, and it only animates while it is moving.
+- Scroll maths and the hero buttons' lean effect now run once per frame, and only when something changed.
+- Tested in headless Chromium without a GPU, so absolute frame rates there are pessimistic. Not yet checked on real hardware.
+
 ## M95 - Calmer intro, setup theatre nav, smoother transitions, new hero deck
 
 - Removed the sound button and the footer "Smooth scrolling / Calm mode / Replay intro" controls. Animations and the intro are now on by default (intro plays once per browser session; the OS "reduce motion" setting is still respected). Intro sound plays only if the browser allows audio without a click.
