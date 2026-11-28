@@ -33,7 +33,7 @@ jobs:
       artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -146,7 +146,7 @@ jobs:
       contents: write # create the release; no other job has this
     steps:
       - name: Check out (for the verification script only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
