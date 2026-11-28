@@ -11,11 +11,25 @@ android {
         applicationId = "com.bibekbista.dash"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+    // Release signing is optional and read from environment variables, so no password is ever written into the project.
+    // Set DASH_KEYSTORE (path to your .jks), DASH_KEYSTORE_PASSWORD and, if different, DASH_KEY_ALIAS and DASH_KEY_PASSWORD.
+    val dashKeystore: String? = System.getenv("DASH_KEYSTORE")
+    if (dashKeystore != null) {
+        signingConfigs {
+            create("dashRelease") {
+                storeFile = file(dashKeystore)
+                storePassword = System.getenv("DASH_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("DASH_KEY_ALIAS") ?: "dash"
+                keyPassword = System.getenv("DASH_KEY_PASSWORD") ?: System.getenv("DASH_KEYSTORE_PASSWORD")
+            }
+        }
     }
     buildTypes {
         release {
+            if (dashKeystore != null) signingConfig = signingConfigs.getByName("dashRelease")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

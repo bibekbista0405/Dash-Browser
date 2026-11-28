@@ -3,6 +3,13 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M101 - Version 0.2.0, Android wrapper and signing
+
+- Version 0.2.0: desktop `package.json`, Android `versionName` 0.2.0 and `versionCode` 2.
+- Android: added the Gradle wrapper (gradle 8.7, matches the Android Gradle Plugin 8.5.2), so `gradlew.bat assembleDebug` works without installing Gradle. Optional release signing from environment variables (`DASH_KEYSTORE` and related), nothing secret in the project. `.gitignore` now covers keystores, `local.properties` and Android build folders. README has the Windows cmd commands.
+- Added release notes for 0.2.0 in `docs/release-notes/0.2.0.md`.
+- Not tested: the Android build itself (no SDK here), including the new signing block in `build.gradle.kts`. The first build on a real machine may need fixes.
+
 ## M100 - Desktop and Android health check
 
 - Desktop (Windows app), run for real under a virtual display: typecheck, lint and all 44 tests pass, the build works, and the UI check opens every internal screen in both themes at three window sizes with no overflow, clipping or console errors.

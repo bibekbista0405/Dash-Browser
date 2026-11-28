@@ -17,3 +17,11 @@ release
 *.crt
 .env
 .env.*
+
+# Android build output and signing keys
+*.jks
+*.keystore
+local.properties
+apps/android/.gradle
+apps/android/build
+apps/android/app/build

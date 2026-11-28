@@ -1,4 +1,4 @@
-# DASH for Android (0.1)
+# DASH for Android (0.2)
 
 Privacy-first mobile browser by Bibek Bista, the phone companion of the DASH desktop browser (source-available, free to use).
 Kotlin + Android WebView. No accounts, no analytics, no ads. Everything stays on the phone.
@@ -28,7 +28,20 @@ Chrome-style layout: address pill (lock / warning / search icon, clear and reloa
 
 ## Build
 **Android Studio:** open this folder, let it sync, press Run (needs Android 11 / API 30+).
-**Command line:** `gradle wrapper --gradle-version 8.7` once, then `./gradlew assembleDebug`; APK is `app/build/outputs/apk/debug/app-debug.apk`.
+**Command line (Windows cmd), debug APK, installs on any phone:**
+```
+cd /d C:\path\to\dash-monorepo\apps\android
+set ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk
+gradlew.bat assembleDebug
+```
+APK: `app\build\outputs\apk\debug\app-debug.apk`. Needs JDK 17 (Android Studio's own works: `set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr`) and, in the SDK Manager, Android SDK Platform 34 and Build-Tools 34.
+**Signed release APK:** create a key once with `keytool -genkeypair -v -keystore %USERPROFILE%\dash-release.jks -alias dash -keyalg RSA -keysize 4096 -validity 10000` (back it up: without it nobody can update the app), then
+```
+set DASH_KEYSTORE=%USERPROFILE%\dash-release.jks
+set DASH_KEYSTORE_PASSWORD=your-password
+gradlew.bat assembleRelease
+```
+APK: `app\build\outputs\apk\release\app-release.apk`. The Gradle wrapper (gradle 8.7) is included, so no separate Gradle install is needed.
 **No Android Studio:** push the monorepo to GitHub; `.github/workflows/android-apk.yml` builds the APK and attaches it as a download.
 
 ## Relation to the monorepo
