@@ -151,7 +151,7 @@ jobs:
           persist-credentials: false
 
       - name: Download signed artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dash-windows-signed
           path: signed
