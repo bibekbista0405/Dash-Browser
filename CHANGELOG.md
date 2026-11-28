@@ -3,6 +3,39 @@
 All notable changes to DASH. Format: [Keep a Changelog](https://keepachangelog.com/); versions follow
 [SemVer](https://semver.org/).
 
+## M100 - Desktop and Android health check
+
+- Desktop (Windows app), run for real under a virtual display: typecheck, lint and all 44 tests pass, the build works, and the UI check opens every internal screen in both themes at three window sizes with no overflow, clipping or console errors.
+- Fixed the UI check itself: it reported the welcome screen's "Get started" button as clipped even though nothing was hidden (a decorative element made the measurement wrong). It now measures the label text.
+- Confirmed: the About screen shows the source-available licence line and links; the installer's licence page uses `resources/license.txt`, which is plain ASCII and carries the new licence.
+- Android: it still cannot be built here (Maven and the Android SDK are blocked, no SDK installed). Static checks instead: the Kotlin compiler found no syntax errors in the 20 source files, and all 130 `R.*` resources the code uses exist in `res/`. The remaining compiler errors are only unresolved Android classes, which is expected without the SDK. This is not a compile or a test.
+- Noted, not changed: the Windows update feed in `package.json` is the placeholder `https://updates.invalid/dash`, so in-app updating only works when the user types an update address in Settings.
+
+## M99 - Production build
+
+- Website build now ends with a production pass: inline CSS and JS are minified (esbuild, used only if installed), and the document pages share one cacheable stylesheet (`assets/doc.<hash>.css`). HTML went from 1040 KB to 364 KB in total; each document page from about 77 KB to about 12 KB.
+- `public/` is wiped and rebuilt every time, and the content editor (`admin.html`, `content.json`) is no longer deployed; `WITH_ADMIN=1 node build.mjs` writes them for local use.
+- `vercel.json`: Content-Security-Policy (self only, plus api.github.com for the release numbers), HSTS, COOP, long immutable caching for fonts and hashed assets, a week for media, redirects from the old /changelog and /contribute addresses.
+- Fixed while testing: moving the stylesheet broke the font paths on document pages; relative url() paths are now rewritten.
+- Checked in headless Chromium through a local server that applies the vercel.json headers: all 10 pages plus 404 at 1440 px and 390 px, no console errors or CSP violations, no horizontal overflow, no broken internal links, intro and transitions work with the minified code. Not checked on the real Vercel deployment or on real devices.
+- The GitHub Pages workflow now installs esbuild before building.
+
+## M98 - Source-available instead of closed
+
+- Decision changed after M97: the code is public again, but it is not open source. `LICENSE` is the PolyForm Noncommercial License 1.0.0, unchanged, under a header with extra notes: anyone may use the official download for any purpose at no charge, the name and logo are not licensed, and releases up to 0.1.0 stay GPL. The header is a draft that a lawyer has not reviewed.
+- Website and apps now say "source-available" (never "open source"); the Source code link, a new FAQ entry, the terms, licences, compare and press pages and the desktop About screen were updated to match. The Promises page stays.
+- CONTRIBUTING.md returns: issues welcome, pull requests not accepted until a contributor agreement exists, so the developer keeps the right to license DASH commercially later.
+- Code signing: source-available is not OSI open source, so the free SignPath route still does not apply.
+
+## M97 - Closed source, free to use
+
+- Licence changed from GPL-3.0 to a proprietary, free-to-use licence (`LICENSE`, also shown in the Windows installer). The old text is kept as `LICENSE-GPL-3.0-legacy.txt` because releases up to 0.1.0 were published under it and those copies stay GPL. The new text is a plain-language draft that a lawyer has not reviewed.
+- Website: removed the changelog and contribute pages and every open-source claim; added a Promises page (five promises, each with a check the visitor can run on their own PC) and a Promises teaser on the developer page; "Open source" in the hero and ribbon became "Made in Nepal"; terms and licences pages rewritten; thank-you card now copies the site link instead of asking for a GitHub star; live GitHub stars and forks removed (release number and download count stay).
+- Privacy page corrected: fonts are served by the site itself, not Google Fonts.
+- Desktop About screen: no more source or GPL links. CONTRIBUTING and the pull request template removed. `package.json` licence fields set to UNLICENSED.
+- Code signing: the free SignPath Foundation route needs an open-source licence, so it no longer applies. Signing needs a paid certificate. Policy text updated.
+- Not done: the GitHub repository itself. Download links, the update feed and issues still point at `site.repo`, so that must stay a public repository (or be replaced by a public releases-only one) when the source repository goes private.
+
 ## M96 - Smoother hero and intro
 
 - Intro: shock rings are drawn on the warp canvas instead of two huge animated page layers, the canvas runs at 1x, and the sound starts after the first frame. Frame times in a headless test went from spikes up to 50 ms to a steady 16.7 ms.

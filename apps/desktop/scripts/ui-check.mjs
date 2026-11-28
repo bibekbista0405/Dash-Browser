@@ -61,7 +61,12 @@ const layoutProbe = () => {
   }
   for (const b of document.querySelectorAll('button')) {
     if (b.scrollWidth > b.clientWidth + 2 && getComputedStyle(b).overflow !== 'visible' && !b.querySelector('.truncate') && b.textContent.trim().length > 0) {
-      out.push(`button "${b.textContent.trim().slice(0, 30)}" clips its label`);
+      // measure the label itself: decorative children (glints, ripples) can make scrollWidth larger without hiding any text
+      const range = document.createRange();
+      range.selectNodeContents(b);
+      const text = range.getBoundingClientRect();
+      const box = b.getBoundingClientRect();
+      if (text.width > 0 && (text.left < box.left - 1 || text.right > box.right + 1)) out.push(`button "${b.textContent.trim().slice(0, 30)}" clips its label`);
     }
   }
   return out.slice(0, 8);

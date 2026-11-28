@@ -4,15 +4,11 @@
 describes the policy that will apply once code signing is in place. Nothing below is a claim that signing already
 exists.
 
-## Planned signing provider
+## Signing provider
 
-DASH intends to apply to SignPath Foundation for free code signing for open-source software. Until SignPath Foundation
-has approved the project, no release is described as signed. After approval, this section is updated with the exact
-attribution SignPath requires (for example, a statement that code signing is provided by SignPath.io with the
-certificate issued by SignPath Foundation), and the same text is shown on the project home page and download page.
-
-> The certificate holder will be SignPath Foundation, not the developer. The publisher text inside the executable
-> ("Bibek Bista") is metadata set by the developer; the certificate signer is a different thing.
+DASH is source-available but not open source as the Open Source Initiative defines it, so the free SignPath Foundation
+programme, which is for open-source projects, is not available. Signing now needs a paid certificate or a paid signing service. No provider has been chosen and no release
+is described as signed. When one is chosen, this section names it and the certificate holder.
 
 ## What gets signed
 
@@ -42,7 +38,7 @@ table is updated.
   version.
 * The signing key is never in the repository or on the developer's computer; signing happens at the provider.
 * After signing, the workflow verifies the Authenticode signatures and only then publishes the release.
-* DASH is licensed under GPL-3.0-only and contains no proprietary components of its own. It does not contain malware or
+* DASH is source-available and free to use. It does not contain malware or
   telemetry, and it does not change system settings beyond installing itself.
 
 ## Privacy

@@ -2,9 +2,9 @@
 <p class="meta">Updated {{updated}}.</p>
 
 <h2 id="report">Report a vulnerability</h2>
-<p>Please <b>do not</b> open a public issue for a security problem. Use GitHub's private reporting instead:</p>
+<p>Please <b>do not</b> open a public issue for a security problem. Use GitHub's private reporting instead, so the details are not public before a fix exists. It needs a free GitHub account:</p>
 <p><a class="btn-link" href="https://github.com/{{site.repo}}/security/advisories/new" rel="noopener">Report privately on GitHub</a></p>
-<p>Include what you found, how to reproduce it, and the DASH version. DASH is maintained by one person, so replies can take a few days. You will be told whether the report is accepted and, if so, when a fix is released. Please allow time for a fix before you disclose publicly. If the link does not work, private vulnerability reporting may not be switched on yet for the repository; in that case open a public issue that says only "I have a security report" and no details.</p>
+<p>Include what you found, how to reproduce it, and the DASH version. DASH is maintained by one person, so replies can take a few days. You will be told whether the report is accepted and, if so, when a fix is released. Please allow time for a fix before you disclose publicly. If the link does not work, private vulnerability reporting may not be switched on yet; in that case open a public issue that says only "I have a security report" and no details.</p>
 
 <h2 id="scope">Scope</h2>
 <p><b>In scope:</b> DASH's own code, meaning the Electron main process, the preload bridge, IPC handlers, internal pages, storage and packaging. <b>Out of scope:</b> vulnerabilities in websites you visit, and in Electron or Chromium themselves. Report those upstream. DASH picks up fixes by updating Electron.</p>
@@ -22,6 +22,6 @@
 <ul>
   <li>Download only from the <a href="https://github.com/{{site.repo}}/releases" rel="noopener">official releases page</a>. The Download page links straight to those files.</li>
   <li>When GitHub shows a SHA-256 for a file, the Download page prints it. Compare it with the hash of your file (in PowerShell: <code>Get-FileHash .\file.exe</code>).</li>
-  <li>The Windows files are <b>not code-signed yet</b>, so SmartScreen warns on first run. The <a href="https://github.com/{{site.repo}}/blob/main/CODE_SIGNING_POLICY.md" rel="noopener">code signing policy</a> says what will change when signing is approved. It does not claim signing exists today.</li>
+  <li>The Windows files are <b>not code-signed yet</b>, so SmartScreen warns on first run. Checking the SHA-256 on the <a href="verify.html">verify page</a> is the way to confirm the file until signing is in place. It does not claim signing exists today.</li>
   <li>Android files are APKs. Only allow installs from your browser or file manager while you install, and turn the permission off afterwards.</li>
 </ul>

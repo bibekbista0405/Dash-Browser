@@ -127,6 +127,8 @@ If signing is not enabled, the run stops after `build` and publishes nothing.
 
 ### SignPath Foundation eligibility (read before applying)
 
+> **Update:** DASH is source-available (see `LICENSE`) but not OSI-approved open source, so it does not qualify for SignPath Foundation. This section is kept for reference. Signing now needs a paid certificate or signing service.
+
 Based on the SignPath Foundation terms (<https://signpath.org/terms>), which you should re-read before applying:
 
 * **Open source:** all components must be under an **OSI-approved open-source license**, no proprietary parts.

@@ -38,7 +38,7 @@ const REPO = 'https://github.com/bibekbista0405/Dash-Browser';
 /** Pages that open in a normal tab (they are on GitHub, so this is a visible, user-started connection). */
 const LEGAL_LINKS = [
   { label: 'Source code', url: REPO },
-  { label: 'License (GPL-3.0)', url: `${REPO}/blob/main/LICENSE` },
+  { label: 'License (source-available)', url: `${REPO}/blob/main/LICENSE` },
   { label: 'Privacy statement', url: `${REPO}/blob/main/PRIVACY.md` },
   { label: 'Code signing policy', url: `${REPO}/blob/main/CODE_SIGNING_POLICY.md` },
   { label: 'Third-party notices', url: `${REPO}/blob/main/THIRD_PARTY_NOTICES.md` },
@@ -767,7 +767,7 @@ export function SettingsPage() {
                 <div className="text-text-primary font-medium">DASH · Privacy First. Built for You.</div>
                 <div>No telemetry and no accounts. Your history, bookmarks, passwords and settings are stored only on this computer.</div>
                 <div>Crash and startup details are written to a local log file; nothing is sent anywhere.</div>
-                <div className="pt-1 text-text-tertiary">Version {__APP_VERSION__} · Open source, GPL-3.0-only · © 2026 Bibek Bista</div>
+                <div className="pt-1 text-text-tertiary">Version {__APP_VERSION__} · Source-available, free to use · © 2026 Bibek Bista</div>
               </div>
               <div className="rounded-lg bg-surface-elevated border border-border/60 p-2 text-[13px]">
                 {LEGAL_LINKS.map((l) => (

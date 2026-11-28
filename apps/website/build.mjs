@@ -1,5 +1,6 @@
 // Builds the DASH website: template/index.tpl.html + content.json -> public/index.html (one self-contained file).
-// Usage: node apps/website/build.mjs      (no dependencies)
+// Usage: node apps/website/build.mjs      (works with no dependencies; if esbuild is installed in the monorepo it also minifies)
+//        WITH_ADMIN=1 node apps/website/build.mjs   also writes the local content editor (never deploy that one)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -124,10 +125,10 @@ const siteUrl = (process.env.SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_
 data.ogImage = siteUrl ? siteUrl + '/og.png' : 'og.png';
 const html = render(read('template/index.tpl.html'), { this: data, '@root': data });
 const out = path.join(here, 'public');
+fs.rmSync(out, { recursive: true, force: true }); // public/ is generated, so stale files never get deployed
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'index.html'), html);
-fs.writeFileSync(path.join(out, 'content.json'), JSON.stringify(content, null, 2));
-fs.copyFileSync(path.join(here, 'template/admin.html'), path.join(out, 'admin.html'));
+if (process.env.WITH_ADMIN) { fs.writeFileSync(path.join(out, 'content.json'), JSON.stringify(content, null, 2)); fs.copyFileSync(path.join(here, 'template/admin.html'), path.join(out, 'admin.html')); }
 
 // ---- real pages: privacy, terms, security, docs, licenses, changelog, 404 ----
 const esc2 = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -139,45 +140,32 @@ const repoFile = (name) => {
   if (fs.existsSync(up)) { const t = fs.readFileSync(up, 'utf8'); fs.writeFileSync(snap, t); return t; }
   return fs.existsSync(snap) ? fs.readFileSync(snap, 'utf8') : '';
 };
-function changelogHtml(md) {
-  const out = []; let inList = false, id = 0;
-  for (const line of md.split(/\r?\n/)) {
-    let m;
-    if ((m = line.match(/^## (.+)/))) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h2 id="r${id++}">${inline(m[1])}</h2>`); }
-    else if ((m = line.match(/^[-*] (.+)/))) { if (!inList) { out.push('<ul>'); inList = true; } out.push(`<li>${inline(m[1])}</li>`); }
-    else if (line.trim() === '' && inList) { out.push('</ul>'); inList = false; }
-    else if (/^[^#\s-]/.test(line) && !/^(All notable|\[Keep|Changelog)/.test(line) && !line.startsWith('#') && !line.startsWith('[SemVer]') && !line.startsWith('versions follow')) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<p>${inline(line)}</p>`); }
-  }
-  if (inList) out.push('</ul>');
-  return out.join('\n');
-}
 function licensesBody() {
   const tp = repoFile('THIRD_PARTY_NOTICES.md'); const rows = [...tp.matchAll(/^\| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]*) \|$/gm)].filter((m) => m[1].trim() !== 'Package' && !/^-+$/.test(m[1].trim()));
   const sum = (tp.match(/\*\*(\d+) packages\.\*\* By license: ([^\n]+)/) || []);
   const body = rows.map((m) => `<tr><td>${esc2(m[1].trim())}</td><td>${esc2(m[2].trim())}</td><td>${esc2(m[3].trim())}</td></tr>`).join('');
-  return `<p class="lead">DASH is free software under the GPL. It builds on other free software, each piece under its own licence.</p>
+  return `<p class="lead">DASH is source-available and free to use. It builds on other software, each piece under its own licence.</p>
 <p class="meta">Updated ${data.updated}.</p>
 <h2 id="dash">DASH</h2>
-<p>DASH is licensed under <b>GPL-3.0-only</b>, copyright 2026 ${esc2(content.site.developer)}. Read the full text in the <a href="https://github.com/${content.site.repo}/blob/main/LICENSE" rel="noopener">LICENSE</a> file, or the <a href="https://www.gnu.org/licenses/gpl-3.0.html" rel="noopener">GNU site</a>. The complete source code is public at <a href="https://github.com/${content.site.repo}" rel="noopener">github.com/${content.site.repo}</a>, which is what the GPL asks of anyone who distributes the program.</p>
+<p>DASH is source-available under the <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" rel="noopener">PolyForm Noncommercial License 1.0.0</a>, copyright 2026 ${esc2(content.site.developer)}, with a few extra notes in the <a href="https://github.com/${content.site.repo}/blob/main/LICENSE" rel="noopener">LICENSE</a> file. The plain-words version is in the <a href="terms.html">terms of use</a>. Releases up to and including 0.1.0 were published under GPL-3.0-only, and copies of those releases stay under that licence.</p>
 <h2 id="electron">Electron and Chromium</h2>
 <p>DASH for Windows is built on Electron, which embeds Chromium. They are separate works with their own notices. After installing, find <code>LICENSE.electron.txt</code> and <code>LICENSES.chromium.html</code> in DASH's installed app folder.</p>
 <h2 id="packages">Packages inside DASH for Windows</h2>
-<p>${sum[1] ? `<b>${sum[1]} packages.</b> By licence: ${esc2(sum[2])}.` : 'The list below comes from the installed production dependencies.'} It is generated from the repository by <code>scripts/gen-third-party.mjs</code>.</p>
+<p>${sum[1] ? `<b>${sum[1]} packages.</b> By licence: ${esc2(sum[2])}.` : 'The list below comes from the installed production dependencies.'}</p>
 <div class="tablewrap"><table><thead><tr><th>Package</th><th>Version</th><th>Licence</th></tr></thead><tbody>${body}</tbody></table></div>
 <h2 id="site">This website</h2>
-<p>The website's fonts are Bricolage Grotesque, Hanken Grotesk and JetBrains Mono, all under the SIL Open Font License 1.1, loaded from Google Fonts. The site's own code is part of the DASH repository under GPL-3.0.</p>`;
+<p>The website's fonts are Bricolage Grotesque, Hanken Grotesk and JetBrains Mono, all under the SIL Open Font License 1.1, and they are served from this site.</p>`;
 }
 const pages = [
   { file: 'privacy', title: 'Privacy policy', kicker: 'Legal', desc: 'What DASH and this website do with your data: nothing is sent to the developer, no accounts, no telemetry, and every connection is listed.' },
-  { file: 'terms', title: 'Terms of use', kicker: 'Legal', desc: 'The short terms for using DASH and this website. GPL-3.0 licence, no warranty, plain words.' },
+  { file: 'terms', title: 'Terms of use', kicker: 'Legal', desc: 'The short terms for using DASH and this website. Free to use, what you may and may not do, no warranty, plain words.' },
   { file: 'security', title: 'Security', kicker: 'Security', desc: 'How to report a vulnerability in DASH privately, what is in scope, and how to check what you download.' },
   { file: 'compare', title: 'DASH compared honestly', kicker: 'About', desc: 'Where DASH is a good fit, where other browsers are ahead today, and what to check in any browser you use.' },
-  { file: 'contribute', title: 'Contribute and roadmap', kicker: 'Project', desc: 'Report problems, run DASH from source, send a pull request, and see what might come next.' },
   { file: 'press', title: 'Press kit', kicker: 'Project', desc: 'Facts, a short description, logo and colours for anyone writing about DASH.' },
-  { file: 'verify', title: 'Verify your download', kicker: 'Security', desc: 'How to check the SHA-256 checksum of the DASH installer or APK against the official GitHub release.' },
+  { file: 'verify', title: 'Verify your download', kicker: 'Security', desc: 'How to check the SHA-256 checksum of the DASH installer or APK against the official release.' },
   { file: 'docs', title: 'Documentation', kicker: 'Docs', desc: 'Install DASH, keyboard shortcuts, privacy tools, App Lock, backups and fixes for common problems.' },
-  { file: 'licenses', title: 'Licenses', kicker: 'Legal', desc: 'The GPL-3.0 licence of DASH and the licences of the software it builds on.', gen: licensesBody },
-  { file: 'changelog', title: 'Changelog', kicker: 'Releases', desc: 'Every change made to DASH, newest first.', gen: () => `<p class="lead">What changed in each milestone, newest first. The same list is in the repository.</p>${changelogHtml(repoFile('CHANGELOG.md'))}` },
+  { file: 'licenses', title: 'Licenses', kicker: 'Legal', desc: 'The licence of DASH and the licences of the software it builds on.', gen: licensesBody },
+  { file: 'promises', title: 'The DASH promises', kicker: 'Trust', desc: 'What DASH promises about your privacy, and how to check each promise yourself on your own computer.' },
 ];
 const docTpl = read('template/doc.tpl.html');
 const urls = ['index.html'];
@@ -201,5 +189,24 @@ if (siteUrl) {
   fs.writeFileSync(path.join(out, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${routes.map((r) => `  <url><loc>${siteUrl}/${r}</loc></url>`).join('\n')}\n</urlset>\n`);
   fs.appendFileSync(path.join(out, 'robots.txt'), `\nSitemap: ${siteUrl}/sitemap.xml\n`);
 }
+// ---- production pass: minify inline CSS and JS; share one cacheable stylesheet between the document pages ----
+let esb = null; try { esb = await import('esbuild'); } catch { console.warn('esbuild not found: skipping minification (run npm install at the repo root)'); }
+const { createHash } = await import('node:crypto');
+const minify = (code, loader) => { if (!esb) return code; try { return esb.transformSync(code, { loader, minify: true, target: 'es2019', legalComments: 'none' }).code.trim(); } catch (e) { console.warn('minify skipped for one block:', String(e.message).split('\n')[0]); return code; } };
+let before = 0, after = 0, shared = '';
+fs.mkdirSync(path.join(out, 'assets'), { recursive: true });
+for (const f of fs.readdirSync(out).filter((x) => x.endsWith('.html'))) {
+  let s = fs.readFileSync(path.join(out, f), 'utf8'); before += Buffer.byteLength(s);
+  s = s.replace(/<script>([\s\S]*?)<\/script>/g, (m, js) => '<script>' + minify(js, 'js') + '</script>');
+  if (f === 'index.html') {
+    s = s.replace(/<style>([\s\S]*?)<\/style>/g, (m, css) => '<style>' + minify(css, 'css') + '</style>');
+  } else {
+    const blocks = []; s = s.replace(/<style>([\s\S]*?)<\/style>/g, (m, css) => { blocks.push(css); return blocks.length === 1 ? '@@CSS@@' : ''; });
+    const css = minify(blocks.join('\n').replace(/url\((['"]?)(?!data:|https?:|\/|#|\.\.)/g, 'url($1../'), 'css'), name = 'assets/doc.' + createHash('sha256').update(css).digest('hex').slice(0, 10) + '.css';
+    fs.writeFileSync(path.join(out, name), css); shared = name; s = s.replace('@@CSS@@', `<link rel="stylesheet" href="${name}">`);
+  }
+  fs.writeFileSync(path.join(out, f), s); after += Buffer.byteLength(s);
+}
+console.log(`Production pass: ${(before / 1024).toFixed(0)} KB -> ${(after / 1024).toFixed(0)} KB of HTML${shared ? ', shared stylesheet ' + shared : ''}${esb ? '' : ' (not minified)'}`);
 console.log(`Built ${urls.length} pages + 404${siteUrl ? ' + sitemap for ' + siteUrl : ' (set SITE_URL to also write sitemap.xml)'}`);
-console.log(`Built public/index.html (${(html.length / 1024).toFixed(0)} KB), public/admin.html and public/content.json`);
+

@@ -65,6 +65,14 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 5
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; } }
 pre { margin: 14px 0; padding: 14px 18px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); overflow-x: auto; font: 500 0.88rem/1.5 var(--mono); }
 code { font-family: var(--mono); font-size: 0.9em; }
+
+.pl { display: grid; gap: 18px; margin: 26px 0 34px; }
+.pm { border: 1px solid var(--line); border-radius: 22px; padding: 22px 24px 20px; background: var(--card, transparent); position: relative; }
+.pm header { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+.pm .pm-k { font: 500 0.78rem var(--mono, monospace); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 999px; padding: 3px 12px; }
+.pm h2 { margin: 0; font-size: clamp(1.2rem, 2.4vw, 1.6rem); line-height: 1.2; }
+.pm-do { margin-top: 14px; padding: 14px 18px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 7%, transparent); border-left: 3px solid var(--accent); }
+.pm-do ol { margin: 8px 0 0; padding-left: 20px; } .pm-do li { margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -86,8 +94,8 @@ code { font-family: var(--mono); font-size: 0.9em; }
   </article>
 </div>
 <footer class="foot">
-  <span>© 2026 {{site.developer}}. {{site.name}} is open source under GPL-3.0.</span>
-  <a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="security.html">Security</a><a href="licenses.html">Licenses</a><a href="changelog.html">Changelog</a><a href="verify.html">Verify</a><a href="compare.html">Compare</a><a href="contribute.html">Contribute</a><a href="press.html">Press</a><a href="index.html#developer">Developer</a><a href="https://github.com/{{site.repo}}" rel="noopener">GitHub</a>
+  <span>© 2026 {{site.developer}}. {{site.name}} is source-available and free to use.</span>
+  <a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="security.html">Security</a><a href="licenses.html">Licenses</a><a href="promises.html">Promises</a><a href="verify.html">Verify</a><a href="compare.html">Compare</a><a href="press.html">Press</a><a href="index.html#developer">Developer</a><a href="https://github.com/{{site.repo}}" rel="noopener">GitHub</a>
 </footer>
 <script>
 (function () {

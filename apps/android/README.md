@@ -1,6 +1,6 @@
 # DASH for Android (0.1)
 
-Privacy-first mobile browser by Bibek Bista, the phone companion of the DASH desktop browser (GPL-3.0).
+Privacy-first mobile browser by Bibek Bista, the phone companion of the DASH desktop browser (source-available, free to use).
 Kotlin + Android WebView. No accounts, no analytics, no ads. Everything stays on the phone.
 
 ## What works

@@ -2,10 +2,10 @@
   "site": {
     "name": "DASH",
     "title": "DASH Browser",
-    "description": "DASH is a free, open-source browser for Windows and Android with no telemetry, no accounts and everything stored on your device.",
+    "description": "DASH is a free browser for Windows and Android with no telemetry, no accounts and everything stored on your device.",
     "repo": "bibekbista0405/Dash-Browser",
     "developer": "Bibek Bista",
-    "license": "GPL-3.0"
+    "license": "PolyForm Noncommercial 1.0.0, source-available"
   },
   "nav": [
     {
@@ -40,13 +40,13 @@
       "you."
     ],
     "lede": "DASH is a fast, free browser for Windows and Android. It blocks ads and trackers, sends nothing about you to anyone, and keeps your data on your own device.",
-    "note": "Free and open source. No account.",
+    "note": "Free to use. No account.",
     "windowsLabel": "Download for Windows",
     "androidLabel": "Download for Android",
     "trust": [
       "Free, no ads",
       "No account",
-      "Open source, GPL-3.0",
+      "Made in Nepal",
       "Nothing sent to the developer"
     ]
   },
@@ -54,7 +54,7 @@
     "No telemetry",
     "No accounts",
     "Data stays on your device",
-    "Open source",
+    "Made in Nepal",
     "Ads and trackers blocked",
     "HTTPS-only mode",
     "Encrypted backups",
@@ -63,7 +63,7 @@
   "connections": {
     "title": "Every connection DASH makes, listed.",
     "intro": "Most browsers call home for analytics, sync and suggestions. DASH has none of that. Besides loading the pages you ask for, these are the only requests it can make, and each one is off by default or starts with something you do.",
-    "note": "This list comes from the privacy statement in the source code. If the code ever disagrees with it, that is a bug you can report.",
+    "note": "This list comes from DASH's privacy statement. If DASH ever makes a request that is not on it, that is a bug, and you can report it.",
     "rows": [
       {
         "title": "Telemetry",
@@ -251,11 +251,15 @@
       },
       {
         "q": "Why does Windows warn me before running it?",
-        "a": "The Windows build is not code-signed yet, and Windows warns about any unsigned program from a small publisher. You can read the source on GitHub before running it."
+        "a": "The Windows build is not code-signed yet, and Windows warns about any unsigned program from a small publisher. Compare the file's SHA-256 with the one shown here before you run it."
+      },
+      {
+        "q": "Can I read or change the code?",
+        "a": "Yes. The source code is public. Under the PolyForm Noncommercial licence you can read it, build it, change it for yourself and share your changes for noncommercial purposes. You cannot sell DASH or include it in something you sell. Because of that limit it is called source-available, not open source."
       },
       {
         "q": "Is it really free?",
-        "a": "Yes. DASH is open source under the GPL-3.0 license, made by Bibek Bista, an independent developer in Nepal. There are no paid tiers and no ads."
+        "a": "Yes. DASH is free to download and use. It is made by Bibek Bista, an independent developer in Nepal. It has no ads and nothing in it tracks you."
       },
       {
         "q": "Can I sync between my laptop and phone?",
@@ -267,16 +271,16 @@
       },
       {
         "q": "I found a bug. Where do I report it?",
-        "a": "Open an issue on GitHub. Security problems go through the process described in the repository's SECURITY.md."
+        "a": "Use the Report a problem link in the footer. Security problems go through the private route described on the Security page."
       }
     ]
   },
   "cta": {
     "title": "The data a browser collects is hard to take back. Start by giving it none.",
-    "text": "Free. Open source. Yours. It takes about two minutes."
+    "text": "Free. Private. Yours. It takes about two minutes."
   },
   "footer": {
-    "text": "A privacy-first browser by Bibek Bista, an independent developer in Nepal. Open source under GPL-3.0."
+    "text": "A privacy-first browser by Bibek Bista, an independent developer in Nepal. Free to use."
   },
   "thanks": {
     "title": "Thank you.",
@@ -307,7 +311,7 @@
     "tagline": "Nothing follows you."
   },
   "home": {
-    "manifesto": "Most browsers are paid for by watching you. DASH is free and open source, made by one developer, so nothing in it depends on watching you. It blocks the trackers, keeps everything on your device, and lists every connection it can make.",
+    "manifesto": "Most browsers are paid for by watching you. DASH is free and made by one developer, and it is built so that nothing in it depends on watching you. It blocks the trackers, keeps everything on your device, and lists every connection it can make.",
     "how": {
       "title": "What happens when you open a page.",
       "items": [
@@ -413,7 +417,7 @@
       {
         "art": "free",
         "title": "Free, and no catch",
-        "text": "No account, no ads, no premium tier. DASH is open source under GPL-3.0, so nothing about it depends on selling your attention."
+        "text": "No account and no ads. DASH does not make money from your attention, and it does not need to know who you are."
       },
       {
         "art": "proof",
@@ -446,10 +450,8 @@
     ]
   },
   "proof": {
-    "title": "Open by default",
-    "sub": "These numbers are read live from GitHub when you open this page. If GitHub can't be reached, they stay hidden.",
-    "stars": "Stars on GitHub",
-    "forks": "Forks",
+    "title": "Straight from the release",
+    "sub": "These numbers are read live from the public release page when you open this site. If it can't be reached, they stay hidden.",
     "downloads": "Downloads of all releases",
     "release": "Latest release"
   },
@@ -462,7 +464,7 @@
     "github": "https://github.com/bibekbista0405",
     "h1a": "One developer.",
     "h1b": "One browser.",
-    "sub": "I'm Bibek. I design, write, test and ship DASH on my own, from Nepal. I keep it free and open source so nobody has to take my word for it.",
+    "sub": "I'm Bibek. I design, write, test and ship DASH on my own, from Nepal. The code is public to read, and the Promises page shows how to check what DASH does on your own computer.",
     "stackTitle": "What DASH is made of",
     "stackText": "Desktop is Electron with React and TypeScript. Android is Kotlin on the system WebView. This website is plain HTML, CSS and JavaScript built by a small script. Hover the orbit to hold it still.",
     "rings": [
@@ -482,7 +484,6 @@
         "GitHub Actions"
       ]
     ],
-    "timelineTitle": "From the workshop, newest first",
     "principlesTitle": "Rules I build by",
     "principles": [
       {
@@ -503,7 +504,7 @@
       {
         "k": "04",
         "t": "Open to inspect",
-        "b": "The source is public under GPL-3.0. Read it, build it, change it, tell me where I got it wrong."
+        "b": "Check what it does on your own computer, then tell me where I got it wrong."
       }
     ],
     "ctaTitle": "Want to see what else I make?",
@@ -511,9 +512,28 @@
     "counts": [
       "Milestones shipped",
       "Lines of code",
-      "Source files",
+      "Project files",
       "Platforms"
-    ]
+    ],
+    "promiseTitle": "Three promises you can check",
+    "promises": [
+      {
+        "k": "Sent",
+        "t": "Nothing about you goes to the developer.",
+        "d": "No analytics, no crash uploads, no advertising ID."
+      },
+      {
+        "k": "Stored",
+        "t": "Your data stays on your device.",
+        "d": "History, bookmarks, passwords and settings live in one folder on your computer."
+      },
+      {
+        "k": "Needed",
+        "t": "DASH does not ask you to create an account.",
+        "d": "Install it, open it, browse."
+      }
+    ],
+    "promiseCta": "See how to check each one"
   },
   "demo": {
     "title": "See DASH in action",

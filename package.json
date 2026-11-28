@@ -1,7 +1,7 @@
 {
   "name": "dash-monorepo",
   "version": "0.1.0",
-  "license": "GPL-3.0-only",
+  "license": "SEE LICENSE IN LICENSE",
   "private": true,
   "description": "DASH — a privacy-first browser platform. apps/desktop is the Electron implementation today; packages/browser-core holds platform-independent domain logic shared by every future platform (Android, iOS).",
   "workspaces": [

@@ -1,34 +1,15 @@
 # Contributing to DASH
 
-Thanks for helping. DASH is a privacy-first browser; changes must keep that true.
+DASH is source-available under the PolyForm Noncommercial License 1.0.0 (see `LICENSE`). You can read the code, build it,
+change it for your own use and share your changes for noncommercial purposes. You cannot sell it.
 
-## Ground rules
+**What helps most**
 
-* **No telemetry or tracking**, ever, and no new network connection unless the user starts it. If a feature needs one,
-  document it in `PRIVACY.md` in the same change.
-* **Real features only** — no placeholder UI or invented data. If something is limited, say so in the UI and docs.
-* **Secure Electron defaults** — context isolation on, no Node in renderers, every IPC channel validated in
-  `apps/desktop/src/main/ipc/register-ipc.ts`.
-* By contributing you agree your work is licensed under **GPL-3.0-only** (see `LICENSE`).
+- Bug reports and ideas: open an issue and say the DASH version, whether it is Windows or Android, what you did and what happened. A screenshot helps.
+- Security problems: do not open a public issue. Read `SECURITY.md`.
 
-## Setup
+**Pull requests are not accepted for now.** The developer may license DASH commercially later, and that needs every line of
+code to be owned or licensed by the developer. Until there is a contributor agreement in place, code from other people cannot be merged. This is not about the quality of your work. Please
+open an issue instead and describe the change.
 
-```bash
-npm install
-npm run dev          # development
-npm run typecheck    # strict TypeScript
-npm run lint
-npm run build
-```
-
-Windows packaging: see [docs/WINDOWS-RELEASE.md](docs/WINDOWS-RELEASE.md). The desktop app lives in `apps/desktop`;
-platform-independent logic in `packages/browser-core`.
-
-## Pull requests
-
-1. Keep a PR focused; describe what changed and how you tested it (UI changes: say which screens/themes).
-2. `npm run typecheck`, `npm run lint` and `npm run build` must pass; for UI changes also run
-   `npm run ui-check --workspace=apps/desktop`.
-3. Update `CHANGELOG.md` under *Unreleased*.
-
-Security problems: do not open a public issue — see [SECURITY.md](SECURITY.md).
+Run it from source: `npm install`, then `npm run dev`. `npm run typecheck` and `npm run lint` check the code.
