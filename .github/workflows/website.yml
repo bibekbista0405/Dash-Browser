@@ -27,7 +27,7 @@ jobs:
       - run: npm install --no-save --no-package-lock esbuild@0.25.0
       - run: node apps/website/build.mjs
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/website/public
       - id: deployment
